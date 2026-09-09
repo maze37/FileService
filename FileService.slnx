@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/SolutionFolder/">
+    <File Path=".dockerignore" />
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docker-compose.yml" />
+    <File Path="nuget.config" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/FileService.Contracts/FileService.Contracts.csproj" />
+    <Project Path="src/FileService.Core/FileService.Core.csproj" />
+    <Project Path="src/FileService.Domain/FileService.Domain.csproj" />
+    <Project Path="src/FileService.Infrastructure.S3/FileService.Infrastructure.S3.csproj" />
+    <Project Path="src/FileService.Web/FileService.Web.csproj" />
+    <Project Path="src\FileService.Infrastructure.Postgres\FileService.Infrastructure.Postgres.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FileService.Domain.Tests/FileService.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
