@@ -1,0 +1,27 @@
+using FileService.Infrastructure.Postgres;
+using FileService.Infrastructure.S3;
+using Microsoft.AspNetCore.Mvc;
+
+namespace FileService.Web.Configuration;
+
+public static class Inject
+{
+    public static IServiceCollection ConfigureApp(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services
+            .AddS3(configuration)
+            .AddPostgres(configuration)
+            .AddSwaggerGen()
+            .AddControllers();
+        
+        // Убрать стандартный возврат ответа ошибок от AspNetCore.
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.SuppressModelStateInvalidFilter = true;
+        });
+        
+        return services;
+    }
+}

@@ -1,0 +1,66 @@
+﻿name: file-service
+
+services:
+  postgres:
+    container_name: postgres-fs
+    image: postgres:18-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: file_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      PGDATA: /var/lib/postgresql/pgdata
+    ports:
+      - "15434:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  seq:
+    container_name: seq-fs
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+    ports:
+      - "8083:80"
+      - "5343:5341"
+    restart: always
+
+  minio:
+    container_name: minio-fs
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server --console-address ":9001" /data
+    restart: always
+
+  file-service:
+    build:
+      context: .
+      dockerfile: src/FileService.Web/Dockerfile
+      args:
+        - GITHUB_TOKEN=${GITHUB_TOKEN}
+    container_name: file-service
+    restart: always
+    ports:
+      - "8003:8003"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8003
+      - ConnectionStrings__FileServiceDb=Host=postgres;Port=5432;Database=file_service_db;Username=postgres;Password=1234
+      - Serilog__WriteTo__1__Args__serverUrl=http://seq:80
+      - S3Options__Endpoint=http://minio:9000
+      - S3Options__AccessKey=minioadmin
+      - S3Options__SecretKey=minioadmin
+    depends_on:
+      - postgres
+      - seq
+      - minio
+
+volumes:
+  postgres-data:
+    name: fileservice-postgres-data
