@@ -21,6 +21,10 @@ public static class Inject
         {
             options.SuppressModelStateInvalidFilter = true;
         });
+
+        services.AddHealthChecks()
+            .AddCheck<S3HealthCheck>("s3-storage")
+            .AddNpgSql(configuration.GetConnectionString("FileServiceDb")!, name: "postgres");
         
         return services;
     }

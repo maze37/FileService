@@ -20,13 +20,17 @@ public static class Inject
 
             var config = new AmazonS3Config
             {
-                ServiceURL = s3Options.Endpoint, UseHttp = !s3Options.WithSsl, ForcePathStyle = true
+                ServiceURL = s3Options.Endpoint, 
+                ForcePathStyle = true,
+                UseHttp = !s3Options.WithSsl
             };
 
             return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
         });
         
-        services.AddScoped<IS3Provider, S3Provider>();
+        services.AddSingleton<IS3Provider, S3Provider>();
+        
+        services.AddHostedService<S3BucketInitializer>();
         
         return services;
     }
