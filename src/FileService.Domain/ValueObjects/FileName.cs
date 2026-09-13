@@ -25,6 +25,9 @@ public sealed class FileName : ValueObject
 
     public static Result<FileName, Error> Create(string fileName)
     {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return GeneralErrors.ValueIsInvalid(nameof(fileName), "Название файла не может быть пустым.");
+        
         int lastDot = fileName.LastIndexOf('.');
         if (lastDot == -1 || lastDot == fileName.Length - 1)
         {

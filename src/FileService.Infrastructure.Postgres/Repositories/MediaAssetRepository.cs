@@ -28,6 +28,9 @@ public class MediaAssetRepository : IMediaAssetRepository
             .FirstOrDefaultAsync(ma => ma.Id == mediaAssetId, cancellationToken)
             .ConfigureAwait(false);
 
+        if (mediaAsset is null)
+            return Error.NotFound("media.asset.not_found", $"Asset с id '{mediaAssetId}' не найден");
+
         return mediaAsset;
     }
 }

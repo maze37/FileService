@@ -65,7 +65,7 @@ public class MediaAssetController : ControllerBase
     {
         var query = new GetFileQuery(mediaAssetId);
         var response = await _getFileHandler.HandleAsync(query, cancellationToken);
-        
+
         if (response.IsFailure)
             return response.Error.ToResponse();
 
