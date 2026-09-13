@@ -33,4 +33,14 @@ public class MediaAssetRepository : IMediaAssetRepository
 
         return mediaAsset;
     }
+
+    public async Task<IReadOnlyList<MediaAsset>> GetByOwnerAsync(
+        string context,
+        Guid entityId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.MediaAssets
+            .Where(a => a.MediaOwner.Context == context && a.MediaOwner.EntityId == entityId)
+            .ToListAsync(cancellationToken);
+    }
 }

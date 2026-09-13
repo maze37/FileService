@@ -1,12 +1,9 @@
 ﻿namespace FileService.Contracts;
 
-public record GetFileResponse(
+public record FileDto(
     Guid Id,
     string FileName,
     string ContentType,
     long SizeBytes,
-    string AssetType,
     string Status,
-    string Context,
-    Guid EntityId,
-    string? DownloadUrl);
+    string AssetType);

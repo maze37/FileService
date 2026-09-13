@@ -1,8 +1,11 @@
 using Core.Abstractions;
 using FileService.Contracts;
+using FileService.Core.UseCases.Commands.CancelUpload;
 using FileService.Core.UseCases.Commands.CompleteUpload;
+using FileService.Core.UseCases.Commands.DeleteFile;
 using FileService.Core.UseCases.Commands.InitiateUpload;
 using FileService.Core.UseCases.Queries.GetFile;
+using FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
 using Framework.ResponseExtensions;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Result;
@@ -10,20 +13,30 @@ using Shared.Result;
 namespace FileService.Web.Controllers;
 
 [ApiController]
+[Route("api/files")]
 public class MediaAssetController : ControllerBase
 {
     private readonly ICommandHandler<InitiateUploadCommand, InitiateUploadResponse> _initiateUploadHandler;
     private readonly ICommandHandler<CompleteUploadCommand, CompleteUploadResponse> _completeUploadHandler;
     private readonly IQueryHandlerWithResult<GetFileQuery, GetFileResponse> _getFileHandler;
+    private readonly IQueryHandlerWithResult<GetFilesByTargetEntityQuery, GetFilesByTargetEntityResponse> _getFilesByTargetEntityHandler;
+    private readonly ICommandHandler<CancelUploadCommand, CancelUploadResponse> _cancelUploadHandler;
+    private readonly ICommandHandler<DeleteFileCommand, DeleteFileResponse> _deleteFileHandler;
     
     public MediaAssetController(
         ICommandHandler<InitiateUploadCommand, InitiateUploadResponse> initiateUploadHandler,
         ICommandHandler<CompleteUploadCommand, CompleteUploadResponse> completeUploadHandler,
-        IQueryHandlerWithResult<GetFileQuery, GetFileResponse> getFileHandler)
+        IQueryHandlerWithResult<GetFileQuery, GetFileResponse> getFileHandler,
+        IQueryHandlerWithResult<GetFilesByTargetEntityQuery, GetFilesByTargetEntityResponse> getFilesByTargetEntityHandler,
+        ICommandHandler<CancelUploadCommand, CancelUploadResponse> cancelUploadHandler,
+        ICommandHandler<DeleteFileCommand, DeleteFileResponse> deleteFileHandler)
     {
         _initiateUploadHandler = initiateUploadHandler;
         _completeUploadHandler = completeUploadHandler;
         _getFileHandler = getFileHandler;
+        _getFilesByTargetEntityHandler = getFilesByTargetEntityHandler;
+        _cancelUploadHandler = cancelUploadHandler;
+        _deleteFileHandler = deleteFileHandler;
     }
     
     [HttpPost("upload/initiate")]
@@ -58,13 +71,56 @@ public class MediaAssetController : ControllerBase
         return Ok(Envelope.Ok(response.Value));
     }
 
-    [HttpGet("{mediaAssetId:guid}")]
+    [HttpGet("{fileId:guid}")]
     public async Task<IActionResult> GetFile(
-        Guid mediaAssetId,
+        Guid fileId,
         CancellationToken cancellationToken)
     {
-        var query = new GetFileQuery(mediaAssetId);
+        var query = new GetFileQuery(fileId);
         var response = await _getFileHandler.HandleAsync(query, cancellationToken);
+
+        if (response.IsFailure)
+            return response.Error.ToResponse();
+
+        return Ok(Envelope.Ok(response.Value));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetFilesByTargetEntity(
+        [FromQuery] string context,
+        [FromQuery] Guid entityId,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetFilesByTargetEntityQuery(context, entityId);
+        var response = await _getFilesByTargetEntityHandler.HandleAsync(query, cancellationToken);
+
+        if (response.IsFailure)
+            return response.Error.ToResponse();
+
+        return Ok(Envelope.Ok(response.Value));
+    }
+
+    [HttpPatch("{fileId:guid}/cancel")]
+    public async Task<IActionResult> CancelUpload(
+        [FromRoute] Guid fileId,
+        CancellationToken cancellationToken)
+    {
+        var command = new CancelUploadCommand(fileId);
+        var response = await _cancelUploadHandler.HandleAsync(command, cancellationToken);
+
+        if (response.IsFailure)
+            return response.Error.ToResponse();
+
+        return Ok(Envelope.Ok(response.Value));
+    }
+
+    [HttpDelete("{fileId:guid}")]
+    public async Task<IActionResult> DeleteFile(
+        [FromRoute] Guid fileId,
+        CancellationToken cancellationToken)
+    {
+        var command = new DeleteFileCommand(fileId);
+        var response = await _deleteFileHandler.HandleAsync(command, cancellationToken);
 
         if (response.IsFailure)
             return response.Error.ToResponse();

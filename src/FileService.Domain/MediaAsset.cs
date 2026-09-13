@@ -129,6 +129,19 @@ public abstract class MediaAsset
         UpdatedWhen = DateTimeOffset.UtcNow;
         return UnitResult.Success<Error>();
     }
+    
+    public UnitResult<Error> MarkAsCancelled()
+    {
+        if (Status == MediaStatus.CANCELLED)
+            return Error.Conflict("media.asset.already.cancelled", "Файл уже отменен.");
+
+        if (Status == MediaStatus.PENDING)
+            return Error.Conflict("media.asset.cannot.cancel.pending", "Нельзя отменить файл, который никогда не загружался");
+
+        Status = MediaStatus.CANCELLED;
+        UpdatedWhen = DateTimeOffset.UtcNow;
+        return UnitResult.Success<Error>();
+    }
 
     public UnitResult<Error> MakePermanent()
     {

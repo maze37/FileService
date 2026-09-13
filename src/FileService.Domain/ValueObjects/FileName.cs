@@ -28,6 +28,9 @@ public sealed class FileName : ValueObject
         if (string.IsNullOrWhiteSpace(fileName))
             return GeneralErrors.ValueIsInvalid(nameof(fileName), "Название файла не может быть пустым.");
         
+        if (fileName.Length > MAX_LENGTH)
+                return GeneralErrors.ValueIsInvalid(nameof(fileName), "Название файла слишком длинное.");
+        
         int lastDot = fileName.LastIndexOf('.');
         if (lastDot == -1 || lastDot == fileName.Length - 1)
         {

@@ -9,4 +9,9 @@ public interface IMediaAssetRepository
     void Add(MediaAsset asset);
 
     Task<Result<MediaAsset, Error>> GetByIdAsync(Guid mediaAssetId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<MediaAsset>> GetByOwnerAsync(
+        string context,
+        Guid entityId,
+        CancellationToken cancellationToken);
 }
