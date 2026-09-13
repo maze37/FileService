@@ -22,11 +22,12 @@ public class VideoAsset : MediaAsset
     private VideoAsset(
         Guid id,
         MediaData mediaData,
-        MediaStatus status,
-        MediaOwner owner)
-        : base(id, mediaData, status, AssetType.VIDEO, owner) { }
-    
-    public static Result<VideoAsset, Error> Create(MediaData mediaData, MediaOwner owner)
+        MediaOwner owner,
+        StorageKey storageKey,
+        MediaStatus status)
+        : base(id, mediaData, owner, storageKey, status, AssetType.VIDEO) { }
+
+    public static Result<VideoAsset, Error> Create(MediaData mediaData, MediaOwner owner, StorageKey storageKey)
     {
         var validationResult = Validate(mediaData);
         if (validationResult.IsFailure)
@@ -35,10 +36,11 @@ public class VideoAsset : MediaAsset
         return new VideoAsset(
             Guid.CreateVersion7(),
             mediaData,
-            MediaStatus.PENDING,
-            owner);
+            owner,
+            storageKey,
+            MediaStatus.PENDING);
     }
-    
+
     public static UnitResult<Error> Validate(MediaData mediaData)
     {
         if (!AllowedExtensions.Contains(mediaData.FileName.Extension))

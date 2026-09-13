@@ -1,8 +1,9 @@
 using CSharpFunctionalExtensions;
+using FileService.Contracts;
 using FileService.Domain.ValueObjects;
 using Shared.Result;
 
-namespace FileService.Core;
+namespace FileService.Core.Abstractions;
 
 public interface IS3Provider
 {
@@ -40,9 +41,3 @@ public interface IS3Provider
 
     Task<bool> IsAvailableAsync(CancellationToken cancellationToken);
 }
-
-public record ObjectMetadata(
-    string ETag,
-    string ContentType,
-    long SizeBytes,
-    DateTime LastModified);

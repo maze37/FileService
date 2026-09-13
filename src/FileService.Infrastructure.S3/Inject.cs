@@ -1,5 +1,5 @@
 using Amazon.S3;
-using FileService.Core;
+using FileService.Core.Abstractions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -21,6 +21,20 @@ public static class Inject
             var config = new AmazonS3Config
             {
                 ServiceURL = s3Options.Endpoint, 
+                ForcePathStyle = true,
+                UseHttp = !s3Options.WithSsl
+            };
+
+            return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
+        });
+        
+        services.AddKeyedSingleton<IAmazonS3>(S3ClientKeys.PRESIGN, (sp, _) =>
+        {
+            S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+
+            var config = new AmazonS3Config
+            {
+                ServiceURL = s3Options.PublicEndpoint,
                 ForcePathStyle = true,
                 UseHttp = !s3Options.WithSsl
             };

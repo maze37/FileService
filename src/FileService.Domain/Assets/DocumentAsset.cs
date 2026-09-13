@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using FileService.Domain.Enums;
+using FileService.Domain.ValueObjects;
 using Shared.Result;
 
 namespace FileService.Domain.Assets;
@@ -20,17 +21,18 @@ public sealed class DocumentAsset : MediaAsset
     private DocumentAsset(
         Guid id, 
         MediaData mediaData, 
-        MediaStatus status, 
-        MediaOwner owner)
-        : base(id, mediaData, status, AssetType.DOCUMENT, owner) { }
+        MediaOwner owner,
+        StorageKey storageKey,
+        MediaStatus status)
+        : base(id, mediaData, owner, storageKey, status, AssetType.DOCUMENT) { }
 
-    public static Result<DocumentAsset, Error> Create(MediaData mediaData, MediaOwner owner)
+    public static Result<DocumentAsset, Error> Create(MediaData mediaData, MediaOwner owner, StorageKey storageKey)
     {
         var validationResult = Validate(mediaData);
         if (validationResult.IsFailure)
             return validationResult.Error;
 
-        return new DocumentAsset(Guid.CreateVersion7(), mediaData, MediaStatus.PENDING, owner);
+        return new DocumentAsset(Guid.CreateVersion7(), mediaData, owner, storageKey, MediaStatus.PENDING);
     }
 
     public static UnitResult<Error> Validate(MediaData mediaData)

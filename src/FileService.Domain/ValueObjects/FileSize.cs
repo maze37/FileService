@@ -5,7 +5,8 @@ namespace FileService.Domain.ValueObjects;
 
 public sealed class FileSize : ValueObject
 {
-    public const long MAX_BYTES = 500L * 1024 * 1024 * 1024;
+    // 5 гб
+    public const long MAX_BYTES = 5L * 1024 * 1024 * 1024;
 
     public long Bytes { get; }
     

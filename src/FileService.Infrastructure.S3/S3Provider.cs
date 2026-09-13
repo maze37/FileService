@@ -3,9 +3,10 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Util;
 using CSharpFunctionalExtensions;
-using FileService.Core;
-using FileService.Domain;
+using FileService.Contracts;
+using FileService.Core.Abstractions;
 using FileService.Domain.ValueObjects;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shared.Result;
@@ -15,12 +16,18 @@ namespace FileService.Infrastructure.S3;
 public class S3Provider : IS3Provider
 {
     private readonly IAmazonS3 _s3Client;
+    private readonly IAmazonS3 _presignClient;
     private readonly S3Options _s3Options;
     private readonly ILogger<S3Provider> _logger;
 
-    public S3Provider(IAmazonS3 s3Client, IOptions<S3Options> s3Options, ILogger<S3Provider> logger)
+    public S3Provider(
+        IAmazonS3 s3Client,
+        [FromKeyedServices(S3ClientKeys.PRESIGN)] IAmazonS3 presignClient,
+        IOptions<S3Options> s3Options,
+        ILogger<S3Provider> logger)
     {
         _s3Client = s3Client;
+        _presignClient = presignClient;
         _s3Options = s3Options.Value;
         _logger = logger;
     }
@@ -48,7 +55,7 @@ public class S3Provider : IS3Provider
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload object {Bucket}/{Key}", bucketName, key.Key);
+            _logger.LogError(ex, "Failed to upload object {Bucket}/{Key}", bucketName, key.Value);
             return Error.Failure("s3.upload.failed", $"Не удалось загрузить файл в storage: {ex.Message}");
         }
     }
@@ -63,7 +70,7 @@ public class S3Provider : IS3Provider
             return existsResult.Error;
 
         if (existsResult.Value is false)
-            return Error.NotFound("s3.object.not_found", $"Объект '{key.Key}' не найден в bucket '{bucketName}'");
+            return Error.NotFound("s3.object.not_found", $"Объект '{key.Value}' не найден в bucket '{bucketName}'");
 
         var request = new GetPreSignedUrlRequest
         {
@@ -76,12 +83,12 @@ public class S3Provider : IS3Provider
 
         try
         {
-            string url = await _s3Client.GetPreSignedURLAsync(request);
+            string url = await _presignClient.GetPreSignedURLAsync(request);
             return url;
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate download url for {Bucket}/{Key}", bucketName, key.Key);
+            _logger.LogError(ex, "Failed to generate download url for {Bucket}/{Key}", bucketName, key.Value);
             return Error.Failure("s3.download_url.failed", $"Не удалось сгенерировать download url: {ex.Message}");
         }
     }
@@ -95,7 +102,7 @@ public class S3Provider : IS3Provider
         var request = new GetPreSignedUrlRequest
         {
             BucketName = bucketName,
-            Key = key.Key,
+            Key = key.Value,
             Verb = HttpVerb.PUT,
             ContentType = contentType,
             Expires = DateTime.UtcNow.AddHours(_s3Options.UploadUrlExpirationHours),
@@ -104,12 +111,12 @@ public class S3Provider : IS3Provider
 
         try
         {
-            string url = await _s3Client.GetPreSignedURLAsync(request);
+            string url = await _presignClient.GetPreSignedURLAsync(request);
             return url;
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate upload url for {Bucket}/{Key}", bucketName, key.Key);
+            _logger.LogError(ex, "Failed to generate upload url for {Bucket}/{Key}", bucketName, key.Value);
             return Error.Failure("s3.upload_url.failed", $"Не удалось сгенерировать upload url: {ex.Message}");
         }
     }
@@ -124,7 +131,7 @@ public class S3Provider : IS3Provider
             var request = new GetObjectMetadataRequest
             {
                 BucketName = bucketName,
-                Key = key.Key
+                Key = key.Value
             };
 
             var response = await _s3Client.GetObjectMetadataAsync(request, cancellationToken);
@@ -139,11 +146,11 @@ public class S3Provider : IS3Provider
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
-            return Error.NotFound("s3.object.not_found", $"Объект '{key.Key}' не найден в bucket '{bucketName}'");
+            return Error.NotFound("s3.object.not_found", $"Объект '{key.Value}' не найден в bucket '{bucketName}'");
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to get metadata for {Bucket}/{Key}", bucketName, key.Key);
+            _logger.LogError(ex, "Failed to get metadata for {Bucket}/{Key}", bucketName, key.Value);
             return Error.Failure("s3.metadata.failed", $"Не удалось получить metadata: {ex.Message}");
         }
     }
@@ -158,7 +165,7 @@ public class S3Provider : IS3Provider
             var request = new DeleteObjectRequest
             {
                 BucketName = bucketName,
-                Key = key.Key
+                Key = key.Value
             };
 
             await _s3Client.DeleteObjectAsync(request, cancellationToken);
@@ -167,12 +174,12 @@ public class S3Provider : IS3Provider
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
-            _logger.LogInformation("Object {Bucket}/{Key} already absent on delete", bucketName, key.Key);
+            _logger.LogInformation("Object {Bucket}/{Key} already absent on delete", bucketName, key.Value);
             return UnitResult.Success<Error>();
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete object {Bucket}/{Key}", bucketName, key.Key);
+            _logger.LogError(ex, "Failed to delete object {Bucket}/{Key}", bucketName, key.Value);
             return Error.Failure("s3.delete.failed", $"Не удалось удалить объект: {ex.Message}");
         }
     }
@@ -236,7 +243,7 @@ public class S3Provider : IS3Provider
         try
         {
             await _s3Client.GetObjectMetadataAsync(
-                new GetObjectMetadataRequest { BucketName = bucketName, Key = key.Key },
+                new GetObjectMetadataRequest { BucketName = bucketName, Key = key.Value },
                 cancellationToken);
             return true;
         }
@@ -246,7 +253,7 @@ public class S3Provider : IS3Provider
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to check object existence {Bucket}/{Key}", bucketName, key.Key);
+            _logger.LogError(ex, "Failed to check object existence {Bucket}/{Key}", bucketName, key.Value);
             return Error.Failure("s3.object.check_failed", $"Не удалось проверить существование объекта: {ex.Message}");
         }
     }

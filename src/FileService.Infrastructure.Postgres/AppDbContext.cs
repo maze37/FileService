@@ -1,4 +1,4 @@
-using FileService.Domain.Assets;
+using FileService.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace FileService.Infrastructure.Postgres;

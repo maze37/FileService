@@ -18,17 +18,18 @@ services:
   seq:
     container_name: seq-fs
     image: datalust/seq:latest
+    restart: always
     environment:
       ACCEPT_EULA: "Y"
       SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
     ports:
       - "8083:80"
       - "5343:5341"
-    restart: always
 
   minio:
     image: minio/minio:latest
     container_name: file-service-minio
+    restart: always
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -39,7 +40,13 @@ services:
       - minio-data:/data
     command: server /data --console-address ":9001"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:9000/minio/health/live"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,19 +57,20 @@ services:
       context: .
       dockerfile: src/FileService.Web/Dockerfile
       args:
-        - GITHUB_TOKEN=${GITHUB_TOKEN}
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
     container_name: file-service
     restart: always
     ports:
       - "8003:8003"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8003
-      - ConnectionStrings__FileServiceDb=Host=postgres;Port=5432;Database=file_service_db;Username=postgres;Password=1234
-      - Serilog__WriteTo__1__Args__serverUrl=http://seq:80
-      - S3Options__Endpoint=http://minio:9000
-      - S3Options__AccessKey=minioadmin
-      - S3Options__SecretKey=minioadmin
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8003
+      ConnectionStrings__FileServiceDb: "Host=postgres;Port=5432;Database=file_service_db;Username=postgres;Password=1234"
+      Serilog__WriteTo__1__Args__serverUrl: "http://seq:5341"
+      S3Options__Endpoint: "http://minio:9000"
+      S3Options__PublicEndpoint: "http://localhost:9000"
+      S3Options__AccessKey: "minioadmin"
+      S3Options__SecretKey: "minioadmin"
     depends_on:
       - postgres
       - seq

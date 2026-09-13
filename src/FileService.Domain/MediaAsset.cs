@@ -3,7 +3,7 @@ using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
 using Shared.Result;
 
-namespace FileService.Domain.Assets;
+namespace FileService.Domain;
 
 public abstract class MediaAsset
 {
@@ -15,6 +15,21 @@ public abstract class MediaAsset
     /// Метаданные о файле.
     /// </summary>
     public MediaData MediaData { get; protected set; } = null!;
+        
+    /// <summary>
+    /// Владелец медиафайла.
+    /// </summary>
+    public MediaOwner MediaOwner { get; protected set; } = null!;
+    
+    /// <summary>
+    /// Данные о расположении медиафайла.
+    /// </summary>
+    public StorageKey StorageKey { get; protected set; } = null!;
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public StorageMetadata? StorageMetadata { get; protected set; }
     
     /// <summary>
     /// Назначение ассета.
@@ -30,16 +45,6 @@ public abstract class MediaAsset
     /// Флаг временности (temporary/permanent)
     /// </summary>
     public bool IsTemporary { get; protected set; }
-    
-    /// <summary>
-    /// Данные о расположении медиафайла.
-    /// </summary>
-    public StorageKey StorageKey { get; protected set; } = null!;
-    
-    /// <summary>
-    /// Владелец медиафайла.
-    /// </summary>
-    public MediaOwner MediaOwner { get; protected set; } = null!;
 
     /// <summary>
     /// Дата создания.
@@ -57,37 +62,48 @@ public abstract class MediaAsset
     protected MediaAsset(
         Guid id,
         MediaData mediaData,
+        MediaOwner owner,
+        StorageKey storageKey,
         MediaStatus status,
-        AssetType assetType, 
-        MediaOwner owner)
+        AssetType assetType)
     {
         Id = id;
         MediaData = mediaData;
+        MediaOwner = owner;
+        StorageKey = storageKey;
         Status = status;
         AssetType = assetType;
-        MediaOwner = owner;
         IsTemporary = false;
         CreatedWhen = DateTimeOffset.UtcNow;
     }
 
-    public UnitResult<Error> BeginUpload()
+    public UnitResult<Error> BeginUpload(DateTimeOffset updatedTime)
     {
         if (Status != MediaStatus.PENDING)
             return Error.Conflict("media.asset.cannot.begin.upload", $"Нельзя начать загрузку: текущий статус {Status}");
 
         Status = MediaStatus.UPLOADING;
-        UpdatedWhen = DateTimeOffset.UtcNow;
+        UpdatedWhen = updatedTime;
         return UnitResult.Success<Error>();
     }
 
-    public UnitResult<Error> CompleteUpload(StorageKey storageKey)
+    public UnitResult<Error> CompleteUpload(StorageMetadata storageMetadata, DateTimeOffset updatedTime)
     {
         if (Status != MediaStatus.UPLOADING)
             return Error.Conflict("media.asset.cannot.complete.upload", $"Нельзя завершить загрузку: текущий статус {Status}");
+        
+        if (storageMetadata.ActualSizeBytes != MediaData.FileSize.Bytes)
+            return Error.Conflict("media.asset.size.mismatch",
+                $"Фактический размер файла ({storageMetadata.ActualSizeBytes}) не совпадает с заявленным ({MediaData.FileSize.Bytes})");
 
-        StorageKey = storageKey;
+        if (!string.Equals(storageMetadata.ActualContentType, MediaData.ContentType.Value, StringComparison.OrdinalIgnoreCase))
+            return Error.Conflict("media.asset.content_type.mismatch",
+                $"Фактический content-type ({storageMetadata.ActualContentType}) не совпадает с заявленным ({MediaData.ContentType.Value})");
+
+        StorageMetadata = storageMetadata;
         Status = MediaStatus.READY;
-        UpdatedWhen = DateTimeOffset.UtcNow;
+        UpdatedWhen = updatedTime;
+
         return UnitResult.Success<Error>();
     }
 

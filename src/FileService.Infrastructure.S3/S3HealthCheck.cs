@@ -1,4 +1,5 @@
 ﻿using FileService.Core;
+using FileService.Core.Abstractions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace FileService.Infrastructure.S3;
