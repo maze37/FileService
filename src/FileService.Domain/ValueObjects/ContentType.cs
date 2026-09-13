@@ -37,4 +37,6 @@ public sealed record ContentType
 
         return new ContentType(contentType, category);
     }
+    
+    public static implicit operator string(ContentType value) => value.Value;
 }

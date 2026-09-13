@@ -3,6 +3,11 @@
     <PackageReference Include="mazeland.core" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FileService.Contracts\FileService.Contracts.csproj" />
     <ProjectReference Include="..\FileService.Domain\FileService.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="UseCases\Commands\" />
+    <Folder Include="UseCases\Queries\" />
   </ItemGroup>
 </Project>

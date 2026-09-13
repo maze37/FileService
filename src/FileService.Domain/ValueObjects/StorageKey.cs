@@ -73,7 +73,11 @@ public sealed class StorageKey : ValueObject
     }
     
     public static Result<StorageKey, Error> CreateNew(string bucket, string prefix)
-        => Create(bucket, prefix, Guid.NewGuid().ToString("N"));
+    {
+        string key = Guid.NewGuid().ToString("N"); 
+
+        return Create(bucket, prefix, key);
+    }
     
     protected override IEnumerable<object> GetEqualityComponents()
     {

@@ -47,10 +47,6 @@ public class TransactionManager : ITransactionManager
                 "db.update.failed",
                 "Database update failed");
         }
-        // catch (DbUpdateException)
-        // {
-        //     return Error.Failure("db.update.failed", "Database update failed");
-        // }
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "DbUpdateException: {Message}, Inner: {Inner}", 

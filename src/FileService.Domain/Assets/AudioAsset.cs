@@ -21,17 +21,18 @@ public sealed class AudioAsset : MediaAsset
     private AudioAsset(
         Guid id,
         MediaData mediaData,
-        MediaStatus status,
-        MediaOwner owner)
-        : base(id, mediaData, status, AssetType.AUDIO, owner) { }
+        MediaOwner owner,
+        StorageKey storageKey,
+        MediaStatus status)
+        : base(id, mediaData, owner, storageKey, status, AssetType.AUDIO) { }
 
-    public static Result<AudioAsset, Error> Create(MediaData mediaData, MediaOwner owner)
+    public static Result<AudioAsset, Error> Create(MediaData mediaData, MediaOwner owner, StorageKey storageKey)
     {
         var validationResult = Validate(mediaData);
         if (validationResult.IsFailure)
             return validationResult.Error;
 
-        return new AudioAsset(Guid.CreateVersion7(), mediaData, MediaStatus.PENDING, owner);
+        return new AudioAsset(Guid.CreateVersion7(), mediaData, owner, storageKey, MediaStatus.PENDING);
     }
 
     public static UnitResult<Error> Validate(MediaData mediaData)
@@ -41,7 +42,7 @@ public sealed class AudioAsset : MediaAsset
                 $"File extension must be one of: {string.Join(", ", AllowedExtensions)}");
 
         if (mediaData.ContentType.Category != Category.AUDIO)
-            return Error.Validation("audio.invalid.content-type", "Файл должен быть в формате айxљ«я");
+            return Error.Validation("audio.invalid.content-type", "File content type must be audio");
 
         if (mediaData.FileSize > MAX_BYTES)
             return Error.Validation("audio.invalid.size", $"File size must be less than {MAX_BYTES} bytes");

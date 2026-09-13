@@ -1,18 +1,15 @@
 ﻿namespace FileService.Domain.Enums;
 
 /// <summary>
-/// Назначение файла (аватар, документ, превью и т.п.)
+/// Назначение файла — определяет конкретный подтип MediaAsset и bucket в S3.
 /// </summary>
 public enum AssetType
 {
+    VIDEO,
+    AUDIO,
+    DOCUMENT,
     AVATAR,
     COVER,
-    ATTACHMENT,
-    IMAGE,
-    VIDEO,
     PREVIEW,
-    THUMBNAIL,
-    DOCUMENT,
-    TEMPORARY,
-    AUDIO
+    THUMBNAIL
 }

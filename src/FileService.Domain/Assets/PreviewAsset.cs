@@ -1,5 +1,6 @@
 using CSharpFunctionalExtensions;
 using FileService.Domain.Enums;
+using FileService.Domain.ValueObjects;
 using Shared.Result;
 
 namespace FileService.Domain.Assets;
@@ -12,7 +13,7 @@ public sealed class PreviewAsset : MediaAsset
     public const string BUCKET = "previews";
 
     public static readonly string[] AllowedExtensions = ["jpg", "jpeg", "png", "webp"];
-    public const long MAX_BYTES = 10L * 1024 * 1024;
+    public const long MAX_BYTES = 50L * 1024 * 1024;
 
     // EF Core
     private PreviewAsset() { }
@@ -20,15 +21,17 @@ public sealed class PreviewAsset : MediaAsset
     private PreviewAsset(
         Guid id, 
         MediaData mediaData, 
+        MediaOwner owner,
+        StorageKey storageKey,
         MediaStatus status,
-        AssetType assetType, 
-        MediaOwner owner)
-        : base(id, mediaData, status, assetType, owner) { }
+        AssetType assetType)
+        : base(id, mediaData, owner, storageKey, status, assetType) { }
     
     public static Result<PreviewAsset, Error> Create(
-        MediaData mediaData, 
-        AssetType assetType, 
-        MediaOwner owner)
+        MediaData mediaData,
+        MediaOwner owner,
+        StorageKey storageKey,
+        AssetType assetType)
     {
         if (assetType is not (AssetType.AVATAR or AssetType.COVER or AssetType.PREVIEW or AssetType.THUMBNAIL))
             return Error.Validation("preview.invalid.asset-type", "AssetType должен быть изображением-ролью (avatar/cover/preview/thumbnail)");
@@ -37,7 +40,7 @@ public sealed class PreviewAsset : MediaAsset
         if (validationResult.IsFailure)
             return validationResult.Error;
 
-        return new PreviewAsset(Guid.CreateVersion7(), mediaData, MediaStatus.PENDING, assetType, owner);
+        return new PreviewAsset(Guid.CreateVersion7(), mediaData, owner, storageKey, MediaStatus.PENDING, assetType);
     }
 
     public static UnitResult<Error> Validate(MediaData mediaData)

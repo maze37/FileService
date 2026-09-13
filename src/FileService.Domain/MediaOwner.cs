@@ -31,7 +31,7 @@ public sealed record MediaOwner
 
     public static Result<MediaOwner, Error> Create(string context, Guid entityId)
     {
-        if (string.IsNullOrWhiteSpace(context) || context. Length > 50)
+        if (string.IsNullOrWhiteSpace(context) || context.Length > MAX_LENGTH)
             return GeneralErrors.ValueIsInvalid(nameof(context), "Неправильное название контекста.");
         
         string normalizedContext = context.Trim().ToLowerInvariant();

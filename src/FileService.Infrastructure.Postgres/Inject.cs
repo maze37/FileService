@@ -1,6 +1,8 @@
 using Core.Abstractions;
 using Core.Database;
+using FileService.Core.Abstractions;
 using FileService.Infrastructure.Postgres.Database;
+using FileService.Infrastructure.Postgres.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +29,7 @@ public static class Inject
         
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<ITransactionManager, TransactionManager>();
+        services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
         
         return services;
     }

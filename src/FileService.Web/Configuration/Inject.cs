@@ -1,3 +1,4 @@
+using FileService.Core;
 using FileService.Infrastructure.Postgres;
 using FileService.Infrastructure.S3;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,7 @@ public static class Inject
         IConfiguration configuration)
     {
         services
+            .AddCore()
             .AddS3(configuration)
             .AddPostgres(configuration)
             .AddSwaggerGen()
