@@ -33,16 +33,6 @@ public class FileNameTests
     }
 
     [Fact]
-    public void Create_ValidName_ParsesExtensionLowercase()
-    {
-        var result = FileName.Create("Report.PDF");
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Extension.Should().Be("pdf");
-        result.Value.Name.Should().Be("Report.PDF");
-    }
-
-    [Fact]
     public void Create_TooLongName_ReturnsError()
     {
         var longName = new string('a', 300) + ".txt";

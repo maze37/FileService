@@ -9,5 +9,6 @@ public enum MediaStatus
     UPLOADING,
     READY,
     ERROR,
-    DELETED
+    DELETED,
+    CANCELLED
 }

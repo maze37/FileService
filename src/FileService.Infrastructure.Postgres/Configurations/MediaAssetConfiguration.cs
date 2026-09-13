@@ -49,6 +49,7 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
             {
                 fn.Property(f => f.Name).HasColumnName("file_name").HasMaxLength(FileName.MAX_LENGTH).IsRequired();
                 fn.Property(f => f.Extension).HasColumnName("file_extension").HasMaxLength(FileName.MAX_LENGTH).IsRequired();
+                fn.Property(f => f.Value).HasColumnName("file_name_full").HasMaxLength(FileName.MAX_LENGTH * 2).IsRequired();
             });
 
             md.OwnsOne(m => m.ContentType, ct =>

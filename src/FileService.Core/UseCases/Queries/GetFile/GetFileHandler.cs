@@ -62,7 +62,10 @@ public class GetFileHandler : IQueryHandlerWithResult<GetFileQuery, GetFileRespo
             asset.MediaData.FileName.Value,
             asset.MediaData.ContentType.Value,
             asset.MediaData.FileSize.Bytes,
+            asset.AssetType.ToString(),
             asset.Status.ToString(),
+            asset.MediaOwner.Context,
+            asset.MediaOwner.EntityId,
             downloadUrlResult.Value);
     }
 }
