@@ -77,9 +77,8 @@ public class CompleteMultipartUploadHandler : ICommandHandler<CompleteMultipartU
             if (cleanupResult.IsFailure)
                 return cleanupResult.Error;
             
-            if (cleanupResult.IsFailure)
-                _logger.LogError("Не удалось удалить невалидный объект {Key} после mismatch: {Error}",
-                    mediaAsset.StorageKey.Value, cleanupResult.Error.Message);
+            _logger.LogError("Не удалось удалить невалидный объект {Key} после mismatch: {Error}", 
+                mediaAsset.StorageKey.Value, cleanupResult.Error.Message);
             
             return completeResult.Error;
         }

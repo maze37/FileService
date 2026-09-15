@@ -382,7 +382,6 @@ public class S3Provider : IDisposable, IS3Provider
 
     public void Dispose()
     {
-        _requestsSemaphore.Release();
         _requestsSemaphore.Dispose();
     }
 }
