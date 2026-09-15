@@ -41,7 +41,7 @@ public class DeleteFileHandler : ICommandHandler<DeleteFileCommand, DeleteFileRe
 
         var asset = assetResult.Value;
         
-        if (asset.Status != MediaStatus.READY)
+        if (asset.Status != MediaStatus.UPLOADED)
             return Error.Conflict(
                 "media.asset.cannot.delete",
                 $"Нельзя удалить файл: текущий статус {asset.Status}");
@@ -66,7 +66,6 @@ public class DeleteFileHandler : ICommandHandler<DeleteFileCommand, DeleteFileRe
             return commitResult.Error;
         
         var deleteResult = await _s3Provider.DeleteObjectAsync(
-            asset.StorageKey.Bucket, 
             asset.StorageKey,
             cancellationToken);
         

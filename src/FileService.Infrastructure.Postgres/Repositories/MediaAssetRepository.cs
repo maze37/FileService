@@ -1,6 +1,7 @@
+using System.Linq.Expressions;
 using CSharpFunctionalExtensions;
 using FileService.Core.Abstractions;
-using FileService.Domain;
+using FileService.Domain.Assets;
 using Microsoft.EntityFrameworkCore;
 using Shared.Result;
 
@@ -42,5 +43,30 @@ public class MediaAssetRepository : IMediaAssetRepository
         return await _context.MediaAssets
             .Where(a => a.MediaOwner.Context == context && a.MediaOwner.EntityId == entityId)
             .ToListAsync(cancellationToken);
+    }
+    
+    public async Task<Result<MediaAsset, Error>> GetByAsync(
+        Expression<Func<MediaAsset, bool>> predicate,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var mediaAsset = await _context.MediaAssets
+                .FirstOrDefaultAsync(predicate, cancellationToken);
+
+            if (mediaAsset is null)
+                return Errors.General.NotFound(name: "mediaAsset");
+
+            return mediaAsset;
+        }
+        catch (Exception)
+        {
+            return Error.Failure("mediaAsset.get.failed", "Не удалось получить ассет.");
+        }
+    }
+
+    public void Remove(MediaAsset mediaAsset)
+    {
+        _context.MediaAssets.Remove(mediaAsset);
     }
 }

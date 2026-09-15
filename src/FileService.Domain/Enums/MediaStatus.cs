@@ -7,8 +7,7 @@ public enum MediaStatus
 {
     PENDING,
     UPLOADING,
-    READY,
-    ERROR,
+    CANCELLED,
+    UPLOADED,
     DELETED,
-    CANCELLED
 }

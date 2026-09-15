@@ -34,6 +34,10 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
         builder.Property(x => x.IsTemporary)
             .HasColumnName("is_temporary")
             .IsRequired();
+
+        builder.Property(x => x.UploadId)
+            .HasColumnName("upload_id")
+            .IsRequired(false);
         
         builder.Property(x => x.CreatedWhen)
             .HasColumnName("created_when")
@@ -103,8 +107,8 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
         
         builder.OwnsOne(a => a.StorageMetadata, sm =>
         {
-            sm.Property(x => x.ActualContentType).HasColumnName("storage_metadata_actual_content_type");
-            sm.Property(x => x.ActualSizeBytes).HasColumnName("storage_metadata_actual_size_bytes");
+            sm.Property(x => x.ContentType).HasColumnName("storage_metadata_actual_content_type");
+            sm.Property(x => x.SizeBytes).HasColumnName("storage_metadata_actual_size_bytes");
             sm.Property(x => x.ETag).HasColumnName("storage_metadata_e_tag");
         });
         

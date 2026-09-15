@@ -1,5 +1,6 @@
+using System.Linq.Expressions;
 using CSharpFunctionalExtensions;
-using FileService.Domain;
+using FileService.Domain.Assets;
 using Shared.Result;
 
 namespace FileService.Core.Abstractions;
@@ -14,4 +15,10 @@ public interface IMediaAssetRepository
         string context,
         Guid entityId,
         CancellationToken cancellationToken);
+
+    Task<Result<MediaAsset, Error>> GetByAsync(
+        Expression<Func<MediaAsset, bool>> predicate,
+        CancellationToken cancellationToken = default);
+
+    void Remove(MediaAsset mediaAsset);
 }

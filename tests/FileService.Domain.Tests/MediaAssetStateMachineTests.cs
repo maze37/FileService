@@ -8,8 +8,6 @@ namespace FileService.Domain.Tests;
 
 public class MediaAssetStateMachineTests
 {
-    private static readonly DateTimeOffset TestTime = DateTimeOffset.UtcNow;
-
     private const long TestFileSizeBytes = 1000;
     private const string TestContentType = "video/mp4";
 
@@ -25,97 +23,91 @@ public class MediaAssetStateMachineTests
                 expectedChunksCount: 1).Value,
             MediaOwner.ForLesson(Guid.NewGuid()).Value,
             ValidStorageKey()).Value;
-    
-    private static StorageMetadata MatchingStorageMetadata() =>
-        StorageMetadata.Create(
-            eTag: "\"d41d8cd98f00b204e9800998ecf8427e\"",
-            actualContentType: TestContentType,
-            actualSizeBytes: TestFileSizeBytes).Value;
 
     [Fact]
     public void BeginUpload_FromPending_Succeeds()
     {
         var asset = ValidAsset();
 
-        var result = asset.BeginUpload(TestTime);
+        var result = asset.BeginUpload();
 
         result.IsSuccess.Should().BeTrue();
         asset.Status.Should().Be(MediaStatus.UPLOADING);
-        asset.UpdatedWhen.Should().Be(TestTime);
+        asset.UpdatedWhen.Should().NotBeNull();
     }
 
     [Fact]
     public void BeginUpload_FromNonPending_ReturnsError()
     {
         var asset = ValidAsset();
-        asset.BeginUpload(TestTime);
+        asset.BeginUpload();
 
-        var result = asset.BeginUpload(TestTime);
+        var result = asset.BeginUpload();
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("media.asset.cannot.begin.upload");
     }
 
     [Fact]
-    public void CompleteUpload_FromUploading_WithMatchingMetadata_Succeeds()
+    public void AttachUploadId_FromUploading_Succeeds()
     {
         var asset = ValidAsset();
-        asset.BeginUpload(TestTime);
+        asset.BeginUpload();
 
-        var result = asset.CompleteUpload(MatchingStorageMetadata(), TestTime);
+        var result = asset.AttachUploadId("upload-123");
 
         result.IsSuccess.Should().BeTrue();
-        asset.Status.Should().Be(MediaStatus.READY);
-        asset.UpdatedWhen.Should().Be(TestTime);
-        asset.StorageMetadata.Should().NotBeNull();
-        asset.StorageMetadata!.ActualSizeBytes.Should().Be(TestFileSizeBytes);
+        asset.UploadId.Should().Be("upload-123");
     }
 
     [Fact]
-    public void CompleteUpload_WithoutBeginUpload_ReturnsError()
+    public void AttachUploadId_FromPending_ReturnsError()
     {
         var asset = ValidAsset();
 
-        var result = asset.CompleteUpload(MatchingStorageMetadata(), TestTime);
+        var result = asset.AttachUploadId("upload-123");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("media.asset.invalid_status");
+        asset.UploadId.Should().BeNull();
+    }
+
+    [Fact]
+    public void MarkUploaded_FromUploading_Succeeds()
+    {
+        var asset = ValidAsset();
+        asset.BeginUpload();
+
+        var result = asset.MarkUploaded();
+
+        result.IsSuccess.Should().BeTrue();
+        asset.Status.Should().Be(MediaStatus.UPLOADED);
+    }
+
+    [Fact]
+    public void MarkUploaded_WithoutBeginUpload_ReturnsError()
+    {
+        var asset = ValidAsset();
+
+        var result = asset.MarkUploaded();
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("media.asset.cannot.complete.upload");
+        asset.Status.Should().Be(MediaStatus.PENDING);
     }
 
     [Fact]
-    public void CompleteUpload_WithSizeMismatch_ReturnsConflictAndDoesNotChangeStatus()
+    public void MarkUploaded_Twice_SecondCallReturnsError()
     {
         var asset = ValidAsset();
-        asset.BeginUpload(TestTime);
+        asset.BeginUpload();
+        asset.MarkUploaded();
 
-        var mismatchedMetadata = StorageMetadata.Create(
-            eTag: "\"abc123\"",
-            actualContentType: TestContentType,
-            actualSizeBytes: TestFileSizeBytes + 1).Value;
-
-        var result = asset.CompleteUpload(mismatchedMetadata, TestTime);
+        var result = asset.MarkUploaded();
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().Be("media.asset.size.mismatch");
-        asset.Status.Should().Be(MediaStatus.UPLOADING);
-    }
-
-    [Fact]
-    public void CompleteUpload_WithContentTypeMismatch_ReturnsConflict()
-    {
-        var asset = ValidAsset();
-        asset.BeginUpload(TestTime);
-
-        var mismatchedMetadata = StorageMetadata.Create(
-            eTag: "\"abc123\"",
-            actualContentType: "image/png",
-            actualSizeBytes: TestFileSizeBytes).Value;
-
-        var result = asset.CompleteUpload(mismatchedMetadata, TestTime);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().Be("media.asset.content_type.mismatch");
-        asset.Status.Should().Be(MediaStatus.UPLOADING);
+        result.Error.Code.Should().Be("media.asset.cannot.complete.upload");
+        asset.Status.Should().Be(MediaStatus.UPLOADED);
     }
 
     [Fact]
@@ -130,11 +122,11 @@ public class MediaAssetStateMachineTests
     }
 
     [Fact]
-    public void MarkAsDeleted_FromReady_Succeeds()
+    public void MarkAsDeleted_FromUploaded_Succeeds()
     {
         var asset = ValidAsset();
-        asset.BeginUpload(TestTime);
-        asset.CompleteUpload(MatchingStorageMetadata(), TestTime);
+        asset.BeginUpload();
+        asset.MarkUploaded();
 
         var result = asset.MarkAsDeleted();
 
@@ -146,13 +138,49 @@ public class MediaAssetStateMachineTests
     public void MarkAsDeleted_Twice_SecondCallReturnsError()
     {
         var asset = ValidAsset();
-        asset.BeginUpload(TestTime);
-        asset.CompleteUpload(MatchingStorageMetadata(), TestTime);
+        asset.BeginUpload();
+        asset.MarkUploaded();
         asset.MarkAsDeleted();
 
         var result = asset.MarkAsDeleted();
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("media.asset.already.deleted");
+    }
+
+    [Fact]
+    public void MarkAsCancelled_FromPending_ReturnsError()
+    {
+        var asset = ValidAsset();
+
+        var result = asset.MarkAsCancelled();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("media.asset.cannot.cancel.pending");
+    }
+
+    [Fact]
+    public void MarkAsCancelled_FromUploading_Succeeds()
+    {
+        var asset = ValidAsset();
+        asset.BeginUpload();
+
+        var result = asset.MarkAsCancelled();
+
+        result.IsSuccess.Should().BeTrue();
+        asset.Status.Should().Be(MediaStatus.CANCELLED);
+    }
+
+    [Fact]
+    public void MarkAsCancelled_Twice_SecondCallReturnsError()
+    {
+        var asset = ValidAsset();
+        asset.BeginUpload();
+        asset.MarkAsCancelled();
+
+        var result = asset.MarkAsCancelled();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("media.asset.already.cancelled");
     }
 }

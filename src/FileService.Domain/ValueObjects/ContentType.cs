@@ -8,6 +8,7 @@ public sealed record ContentType
 {
     public const int MAX_LENGTH = 255;
     
+    // Example: video/mp4
     public string Value { get; }
 
     public Category Category { get; }

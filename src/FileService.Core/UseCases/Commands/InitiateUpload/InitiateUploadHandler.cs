@@ -8,7 +8,6 @@ using FileService.Domain.Assets;
 using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Shared.Result;
 
 namespace FileService.Core.UseCases.Commands.InitiateUpload;
@@ -66,8 +65,7 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
         if (mediaOwnerResult.IsFailure)
             return mediaOwnerResult.Error;
         
-        if (!Enum.TryParse<AssetType>(command.AssetType, true, out var assetType))
-            return Error.Validation("asset.type.invalid", $"Недопустимый тип ассета: {command.AssetType}");
+        var assetType = AssetTypeExtensions.ToAssetType(command.AssetType);
         
         string prefix = command.Context.ToLower();
         string bucket = assetType.ToBucketName();
@@ -77,7 +75,7 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
             return storageKeyResult.Error;
 
         // Создание ассета
-        var mediaAssetResult = MediaAssetFactory.Create(
+        var mediaAssetResult = MediaAsset.CreateForUpload(
             assetType,
             mediaDataResult.Value,
             mediaOwnerResult.Value,
@@ -86,14 +84,11 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
             return mediaAssetResult.Error;
         
         var uploadUrlResult = await _s3Provider.GenerateUploadUrlAsync(
-            bucket,
             storageKeyResult.Value,
-            contentTypeResult.Value,
-            cancellationToken);
+            contentTypeResult.Value);
         if (uploadUrlResult.IsFailure)
             return uploadUrlResult.Error;
-
-        // Открываем транзакцию
+        
         var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
         if (transactionResult.IsFailure)
             return transactionResult.Error;
@@ -101,7 +96,7 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
         using var transactionScope = transactionResult.Value;
 
         _mediaAssetRepository.Add(mediaAssetResult.Value);
-        mediaAssetResult.Value.BeginUpload(_dateTime.UtcNow);
+        mediaAssetResult.Value.BeginUpload();
 
         var saveResult = await _transactionManager.SaveChangesAsync(cancellationToken);
         if (saveResult.IsFailure)
