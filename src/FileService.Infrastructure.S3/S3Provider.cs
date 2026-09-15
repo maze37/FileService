@@ -10,15 +10,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shared.Result;
+using AbortMultipartUploadRequest = Amazon.S3.Model.AbortMultipartUploadRequest;
+using CompleteMultipartUploadRequest = Amazon.S3.Model.CompleteMultipartUploadRequest;
 
 namespace FileService.Infrastructure.S3;
 
-public class S3Provider : IS3Provider
+public class S3Provider : IDisposable, IS3Provider
 {
     private readonly IAmazonS3 _s3Client;
     private readonly IAmazonS3 _presignClient;
     private readonly S3Options _s3Options;
     private readonly ILogger<S3Provider> _logger;
+    private readonly SemaphoreSlim _requestsSemaphore;
 
     public S3Provider(
         IAmazonS3 s3Client,
@@ -30,12 +33,141 @@ public class S3Provider : IS3Provider
         _presignClient = presignClient;
         _s3Options = s3Options.Value;
         _logger = logger;
+        _requestsSemaphore = new SemaphoreSlim(_s3Options.MaxConcurrentRequests);
+    }
+
+    public async Task<Result<string, Error>> StartMultipartUploadAsync(
+        StorageKey storageKey,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = new InitiateMultipartUploadRequest
+            {
+                BucketName = storageKey.Bucket, 
+                Key = storageKey.Value,
+                ContentType = contentType
+            };
+            
+            InitiateMultipartUploadResponse result = await _s3Client
+                .InitiateMultipartUploadAsync(request, cancellationToken);
+
+            return result.UploadId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error starting multipart upload.");
+            return S3ErrorMapper.ToError(ex);
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<ChunkUploadUrl>, Error>> GenerateAllChunksUploadUrlsAsync(
+        StorageKey storageKey,
+        string uploadId,
+        int totalChunks,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            IEnumerable<Task<ChunkUploadUrl>> tasks = Enumerable.Range(1, totalChunks)
+                .Select(async partNumber =>
+                {
+                    await _requestsSemaphore.WaitAsync(cancellationToken);
+
+                    try
+                    {
+                        var request = new GetPreSignedUrlRequest
+                        {
+                            BucketName = storageKey.Bucket,
+                            Key = storageKey.Value,
+                            Verb = HttpVerb.PUT,
+                            UploadId = uploadId,
+                            PartNumber = partNumber,
+                            Expires = DateTime.UtcNow.AddHours(_s3Options.UploadUrlExpirationHours),
+                            Protocol = _s3Options.WithSsl ? Protocol.HTTPS : Protocol.HTTP
+                        };
+
+                        string? url = await _presignClient.GetPreSignedURLAsync(request);
+
+                        return new ChunkUploadUrl(partNumber, url);
+                    }
+                    finally
+                    {
+                        _requestsSemaphore.Release();
+                    }
+                });
+
+            ChunkUploadUrl[] results = await Task.WhenAll(tasks);
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            return S3ErrorMapper.ToError(ex);
+        }
+    }
+
+    public async Task<Result<string, Error>> CompleteMultipartUploadAsync(
+        StorageKey storageKey,
+        string uploadId,
+        IReadOnlyList<PartETagDto> partETags,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = new CompleteMultipartUploadRequest()
+            {
+                BucketName = storageKey.Bucket,
+                Key = storageKey.Value,
+                UploadId = uploadId,
+                PartETags = partETags.Select(p => new PartETag { ETag = p.ETag, PartNumber = p.PartNumber }).ToList()
+            };
+
+            var response = await _s3Client.CompleteMultipartUploadAsync(
+                request, 
+                cancellationToken);
+
+            return response.Key;
+        }
+        catch (Exception ex)
+        {
+            return S3ErrorMapper.ToError(ex);
+        }
+    }
+
+    public async Task<UnitResult<Error>> AbortMultipartUploadAsync(
+        StorageKey storageKey,
+        string uploadId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = new AbortMultipartUploadRequest
+            {
+                BucketName = storageKey.Bucket,
+                Key = storageKey.Value,
+                UploadId = uploadId
+            };
+
+            await _s3Client.AbortMultipartUploadAsync(request, cancellationToken);
+
+            return UnitResult.Success<Error>();
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return UnitResult.Success<Error>();
+        }
+        catch (AmazonS3Exception ex)
+        {
+            _logger.LogError(ex, "Failed to abort multipart upload {UploadId} for {Bucket}/{Key}", uploadId, storageKey.Bucket, storageKey.Value);
+            return S3ErrorMapper.ToError(ex);
+        }
     }
 
     public async Task<UnitResult<Error>> UploadFileAsync(
         Stream stream,
-        string bucketName,
-        StorageKey key,
+        StorageKey storageKey,
         string contentType,
         CancellationToken cancellationToken)
     {
@@ -43,8 +175,8 @@ public class S3Provider : IS3Provider
         {
             var request = new PutObjectRequest
             {
-                BucketName = bucketName,
-                Key = key.Value,
+                BucketName = storageKey.Bucket,
+                Key = storageKey.Value,
                 InputStream = stream,
                 ContentType = contentType
             };
@@ -55,117 +187,108 @@ public class S3Provider : IS3Provider
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload object {Bucket}/{Key}", bucketName, key.Value);
-            return Error.Failure("s3.upload.failed", $"Не удалось загрузить файл в storage: {ex.Message}");
+            _logger.LogError(ex, "Failed to upload object {Bucket}/{Key}", storageKey.Bucket, storageKey.Value);
+            return S3ErrorMapper.ToError(ex);
         }
     }
 
     public async Task<Result<string, Error>> GenerateDownloadUrlAsync(
-        string bucketName,
-        StorageKey key,
+        StorageKey storageKey,
         CancellationToken cancellationToken)
     {
-        var existsResult = await ObjectExistsAsync(bucketName, key, cancellationToken);
-        if (existsResult.IsFailure)
-            return existsResult.Error;
-
-        if (existsResult.Value is false)
-            return Error.NotFound("s3.object.not_found", $"Объект '{key.Value}' не найден в bucket '{bucketName}'");
-
-        var request = new GetPreSignedUrlRequest
-        {
-            BucketName = bucketName,
-            Key = key.Value,
-            Verb = HttpVerb.GET,
-            Expires = DateTime.UtcNow.AddHours(_s3Options.DownloadUrlExpirationHours),
-            Protocol = _s3Options.WithSsl ? Protocol.HTTPS : Protocol.HTTP
-        };
-
         try
         {
+            var existsResult = await ObjectExistsAsync(storageKey, cancellationToken);
+            if (existsResult.IsFailure)
+                return existsResult.Error;
+
+            if (existsResult.Value is false)
+                return Error.NotFound("s3.object.not_found", $"Объект '{storageKey.Value}' не найден в bucket '{storageKey.Bucket}'");
+
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = storageKey.Bucket,
+                Key = storageKey.Value,
+                Verb = HttpVerb.GET,
+                Expires = DateTime.UtcNow.AddHours(_s3Options.DownloadUrlExpirationHours),
+                Protocol = _s3Options.WithSsl ? Protocol.HTTPS : Protocol.HTTP
+            };
+        
             string url = await _presignClient.GetPreSignedURLAsync(request);
+            
             return url;
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate download url for {Bucket}/{Key}", bucketName, key.Value);
-            return Error.Failure("s3.download_url.failed", $"Не удалось сгенерировать download url: {ex.Message}");
+            _logger.LogError(ex, "Failed to generate download url for {Bucket}/{Key}", storageKey.Bucket, storageKey.Value);
+            return S3ErrorMapper.ToError(ex);
         }
     }
 
     public async Task<Result<string, Error>> GenerateUploadUrlAsync(
-        string bucketName,
-        StorageKey key,
-        string contentType,
-        CancellationToken cancellationToken)
+        StorageKey storageKey,
+        string contentType)
     {
-        var request = new GetPreSignedUrlRequest
-        {
-            BucketName = bucketName,
-            Key = key.Value,
-            Verb = HttpVerb.PUT,
-            ContentType = contentType,
-            Expires = DateTime.UtcNow.AddHours(_s3Options.UploadUrlExpirationHours),
-            Protocol = _s3Options.WithSsl ? Protocol.HTTPS : Protocol.HTTP
-        };
-
         try
         {
-            string url = await _presignClient.GetPreSignedURLAsync(request);
-            return url;
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = storageKey.Bucket,
+                Key = storageKey.Value,
+                Verb = HttpVerb.PUT,
+                ContentType = contentType,
+                Expires = DateTime.UtcNow.AddHours(_s3Options.UploadUrlExpirationHours),
+                Protocol = _s3Options.WithSsl ? Protocol.HTTPS : Protocol.HTTP
+            };
+            
+            string response = await _presignClient.GetPreSignedURLAsync(request);
+            
+            return response;
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate upload url for {Bucket}/{Key}", bucketName, key.Value);
-            return Error.Failure("s3.upload_url.failed", $"Не удалось сгенерировать upload url: {ex.Message}");
+            _logger.LogError(ex, "Failed to generate upload url for {Bucket}/{Key}", storageKey.Bucket, storageKey.Value);
+            return S3ErrorMapper.ToError(ex);
         }
     }
 
-    public async Task<Result<ObjectMetadata, Error>> GetObjectMetadataAsync(
-        string bucketName,
-        StorageKey key,
+    public async Task<Result<StorageMetadata, Error>> GetObjectMetadataAsync(
+        StorageKey storageKey,
         CancellationToken cancellationToken)
     {
         try
         {
             var request = new GetObjectMetadataRequest
             {
-                BucketName = bucketName,
-                Key = key.Value
+                BucketName = storageKey.Bucket,
+                Key = storageKey.Value,
             };
 
             var response = await _s3Client.GetObjectMetadataAsync(request, cancellationToken);
 
-            var metadata = new ObjectMetadata(
-                ETag: response.ETag,
-                ContentType: response.Headers.ContentType,
-                SizeBytes: response.ContentLength,
-                LastModified: response.LastModified.GetValueOrDefault());
-
-            return metadata;
+            return StorageMetadata.Create(response.ContentLength, response.Headers.ContentType, response.ETag);
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
-            return Error.NotFound("s3.object.not_found", $"Объект '{key.Value}' не найден в bucket '{bucketName}'");
+            return Error.NotFound("s3.object.not_found", $"Объект '{storageKey.Value}' не найден в bucket '{storageKey.Bucket}'");
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to get metadata for {Bucket}/{Key}", bucketName, key.Value);
-            return Error.Failure("s3.metadata.failed", $"Не удалось получить metadata: {ex.Message}");
+            _logger.LogError(ex, "Failed to get metadata for {Bucket}/{Key}", storageKey.Bucket, storageKey.Value);
+            return S3ErrorMapper.ToError(ex);
         }
     }
 
     public async Task<UnitResult<Error>> DeleteObjectAsync(
-        string bucketName,
-        StorageKey key,
+        StorageKey storageKey,
         CancellationToken cancellationToken)
     {
         try
         {
             var request = new DeleteObjectRequest
             {
-                BucketName = bucketName,
-                Key = key.Value
+                BucketName = storageKey.Bucket,
+                Key = storageKey.Value,
             };
 
             await _s3Client.DeleteObjectAsync(request, cancellationToken);
@@ -174,13 +297,13 @@ public class S3Provider : IS3Provider
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
-            _logger.LogInformation("Object {Bucket}/{Key} already absent on delete", bucketName, key.Value);
+            _logger.LogInformation("Object {Bucket}/{Key} already absent on delete", storageKey.Bucket, storageKey.Value);
             return UnitResult.Success<Error>();
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete object {Bucket}/{Key}", bucketName, key.Value);
-            return Error.Failure("s3.delete.failed", $"Не удалось удалить объект: {ex.Message}");
+            _logger.LogError(ex, "Failed to delete object {Bucket}/{Key}", storageKey.Bucket, storageKey.Value);
+            return S3ErrorMapper.ToError(ex);
         }
     }
 
@@ -217,7 +340,7 @@ public class S3Provider : IS3Provider
         catch (AmazonS3Exception ex)
         {
             _logger.LogError(ex, "Failed to ensure bucket {Bucket} exists", bucketName);
-            return Error.Failure("s3.bucket.init_failed", $"Не удалось создать/проверить bucket '{bucketName}': {ex.Message}");
+            return S3ErrorMapper.ToError(ex);
         }
     }
 
@@ -236,14 +359,13 @@ public class S3Provider : IS3Provider
     }
 
     private async Task<Result<bool, Error>> ObjectExistsAsync(
-        string bucketName,
-        StorageKey key,
+        StorageKey storageKey,
         CancellationToken cancellationToken)
     {
         try
         {
             await _s3Client.GetObjectMetadataAsync(
-                new GetObjectMetadataRequest { BucketName = bucketName, Key = key.Value },
+                new GetObjectMetadataRequest { BucketName = storageKey.Bucket, Key = storageKey.Value },
                 cancellationToken);
             return true;
         }
@@ -253,8 +375,13 @@ public class S3Provider : IS3Provider
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to check object existence {Bucket}/{Key}", bucketName, key.Value);
-            return Error.Failure("s3.object.check_failed", $"Не удалось проверить существование объекта: {ex.Message}");
+            _logger.LogError(ex, "Failed to check object existence {Bucket}/{Key}", storageKey.Bucket, storageKey.Value);
+            return S3ErrorMapper.ToError(ex);
         }
+    }
+
+    public void Dispose()
+    {
+        _requestsSemaphore.Dispose();
     }
 }

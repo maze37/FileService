@@ -45,6 +45,8 @@ public static class Inject
         services.AddSingleton<IS3Provider, S3Provider>();
         
         services.AddHostedService<S3BucketInitializer>();
+
+        services.AddTransient<IChunkSizeCalculator, ChunkSizeCalculator>();
         
         return services;
     }

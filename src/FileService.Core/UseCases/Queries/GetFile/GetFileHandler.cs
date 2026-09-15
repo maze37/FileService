@@ -34,7 +34,7 @@ public class GetFileHandler : IQueryHandlerWithResult<GetFileQuery, GetFileRespo
 
         var asset = assetResult.Value;
 
-        if (asset.Status != MediaStatus.READY)
+        if (asset.Status != MediaStatus.UPLOADED)
         {
             return Error.Conflict(
                 "media.asset.not_ready",
@@ -44,7 +44,6 @@ public class GetFileHandler : IQueryHandlerWithResult<GetFileQuery, GetFileRespo
         string bucket = asset.AssetType.ToBucketName();
 
         var downloadUrlResult = await _s3Provider.GenerateDownloadUrlAsync(
-            bucket,
             asset.StorageKey,
             cancellationToken);
 

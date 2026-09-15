@@ -17,8 +17,6 @@ namespace FileService.Domain.Tests;
 
 public class FileLifecycleTests
 {
-    private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
-
     private static VideoAsset NewPendingAsset()
     {
         var fileName = FileName.Create("movie.mp4").Value;
@@ -34,15 +32,14 @@ public class FileLifecycleTests
     private static VideoAsset NewUploadingAsset()
     {
         var asset = NewPendingAsset();
-        asset.BeginUpload(Now);
+        asset.BeginUpload();
         return asset;
     }
 
     private static VideoAsset NewReadyAsset()
     {
         var asset = NewUploadingAsset();
-        var meta = StorageMetadata.Create("etag", "video/mp4", 1000).Value;
-        asset.CompleteUpload(meta, Now);
+        asset.MarkUploaded();
         return asset;
     }
 
@@ -59,7 +56,7 @@ public class FileLifecycleTests
 
         return tm;
     }
-    
+
     [Fact]
     public async Task CancelUpload_FromPending_ReturnsConflict()
     {
@@ -93,7 +90,7 @@ public class FileLifecycleTests
             .ReturnsAsync(Result.Success<MediaAsset, Error>(asset));
 
         var s3 = new Mock<IS3Provider>();
-        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<string>(), It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
+        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(UnitResult.Success<Error>());
 
         var handler = new CancelUploadHandler(
@@ -108,7 +105,7 @@ public class FileLifecycleTests
         result.IsSuccess.Should().BeTrue();
         asset.Status.Should().Be(MediaStatus.CANCELLED);
     }
-    
+
     [Fact]
     public async Task CancelUpload_Twice_SecondCallReturnsConflict()
     {
@@ -119,7 +116,7 @@ public class FileLifecycleTests
             .ReturnsAsync(Result.Success<MediaAsset, Error>(asset));
 
         var s3 = new Mock<IS3Provider>();
-        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<string>(), It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
+        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(UnitResult.Success<Error>());
 
         var handler = new CancelUploadHandler(
@@ -171,7 +168,7 @@ public class FileLifecycleTests
             .ReturnsAsync(Result.Success<MediaAsset, Error>(asset));
 
         var s3 = new Mock<IS3Provider>();
-        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<string>(), It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
+        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(Error.Failure("s3.unavailable", "недоступен"));
 
         var handler = new CancelUploadHandler(
@@ -186,7 +183,6 @@ public class FileLifecycleTests
         result.IsSuccess.Should().BeTrue("сбой S3 не должен ломать уже завершённую в БД операцию");
         asset.Status.Should().Be(MediaStatus.CANCELLED);
     }
-    
 
     [Fact]
     public async Task DeleteFile_FromReady_Succeeds()
@@ -198,7 +194,7 @@ public class FileLifecycleTests
             .ReturnsAsync(Result.Success<MediaAsset, Error>(asset));
 
         var s3 = new Mock<IS3Provider>();
-        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<string>(), It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
+        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(UnitResult.Success<Error>());
 
         var handler = new DeleteFileHandler(
@@ -224,7 +220,7 @@ public class FileLifecycleTests
             .ReturnsAsync(Result.Success<MediaAsset, Error>(asset));
 
         var s3 = new Mock<IS3Provider>();
-        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<string>(), It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
+        s3.Setup(x => x.DeleteObjectAsync(It.IsAny<StorageKey>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(UnitResult.Success<Error>());
 
         var handler = new DeleteFileHandler(
@@ -262,6 +258,7 @@ public class FileLifecycleTests
         var result = await handler.HandleAsync(new DeleteFileCommand(asset.Id), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("media.asset.cannot.delete");
         asset.Status.Should().Be(MediaStatus.PENDING);
     }
 
@@ -287,7 +284,6 @@ public class FileLifecycleTests
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("media.asset.not_found");
     }
-    
 
     [Fact]
     public async Task GetFilesByTargetEntity_ExcludesDeletedFiles()

@@ -60,7 +60,6 @@ public class CancelUploadHandler : ICommandHandler<CancelUploadCommand, CancelUp
             return commitResult.Error;
         
         var deleteResult = await _s3Provider.DeleteObjectAsync(
-            asset.StorageKey.Bucket, 
             asset.StorageKey,
             cancellationToken);
         

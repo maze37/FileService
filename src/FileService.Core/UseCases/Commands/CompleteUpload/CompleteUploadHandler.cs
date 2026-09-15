@@ -36,7 +36,6 @@ public class CompleteUploadHandler : ICommandHandler<CompleteUploadCommand, Comp
         CompleteUploadCommand command,
         CancellationToken cancellationToken)
     {
-        // Находим asset
         var assetResult = await _mediaAssetRepository.GetByIdAsync(command.MediaAssetId, cancellationToken);
         if (assetResult.IsFailure)
             return assetResult.Error;
@@ -45,51 +44,33 @@ public class CompleteUploadHandler : ICommandHandler<CompleteUploadCommand, Comp
 
         if (asset.Status != MediaStatus.UPLOADING)
         {
-            return Error.Conflict(
-                "media.asset.cannot.complete",
-                $"Нельзя завершить загрузку: текущий статус {asset.Status}");
+            return Error.Conflict("media.asset.cannot.complete", $"Нельзя завершить загрузку: текущий статус {asset.Status}");
         }
         
         string bucket = asset.AssetType.ToBucketName();
 
         var metadataResult = await _s3Provider.GetObjectMetadataAsync(
-            bucket,
             asset.StorageKey,
             cancellationToken);
 
         if (metadataResult.IsFailure)
         {
-            _logger.LogWarning(
-                "Completion failed for asset {AssetId}: object not found in storage. {Error}",
-                asset.Id, metadataResult.Error);
+            _logger.LogWarning("Completion failed for asset {AssetId}: object not found in storage. {Error}", asset.Id, metadataResult.Error);
 
             return metadataResult.Error;
         }
 
-        var objectMetadata = metadataResult.Value;
-
-        var storageMetadataResult = StorageMetadata.Create(
-            objectMetadata.ETag,
-            objectMetadata.ContentType,
-            objectMetadata.SizeBytes);
-
-        if (storageMetadataResult.IsFailure)
-            return storageMetadataResult.Error;
-
-        // Открываем транзакцию
         var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
         if (transactionResult.IsFailure)
             return transactionResult.Error;
 
         using var transactionScope = transactionResult.Value;
 
-        var completeResult = asset.CompleteUpload(storageMetadataResult.Value, _dateTime.UtcNow);
+        var completeResult = asset.MarkUploaded();
+        
         if (completeResult.IsFailure)
         {
-            _logger.LogWarning(
-                "Completion validation failed for asset {AssetId}: {Error}",
-                asset.Id, completeResult.Error);
-
+            _logger.LogWarning("Completion validation failed for asset {AssetId}: {Error}", asset.Id, completeResult.Error);
             return completeResult.Error;
         }
 
@@ -104,8 +85,8 @@ public class CompleteUploadHandler : ICommandHandler<CompleteUploadCommand, Comp
         return new CompleteUploadResponse(
             asset.Id,
             asset.Status.ToString(),
-            storageMetadataResult.Value.ActualSizeBytes,
-            storageMetadataResult.Value.ActualContentType,
-            storageMetadataResult.Value.ETag);
+            metadataResult.Value.SizeBytes,
+            metadataResult.Value.ContentType,
+            metadataResult.Value.ETag);
     }
 }

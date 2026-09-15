@@ -1,4 +1,4 @@
-using CSharpFunctionalExtensions;
+﻿using CSharpFunctionalExtensions;
 using FileService.Contracts;
 using FileService.Domain.ValueObjects;
 using Shared.Result;
@@ -7,32 +7,48 @@ namespace FileService.Core.Abstractions;
 
 public interface IS3Provider
 {
+    Task<Result<string, Error>> StartMultipartUploadAsync(
+        StorageKey storageKey,
+        string contentType,
+        CancellationToken cancellationToken);
+
+    Task<Result<IReadOnlyList<ChunkUploadUrl>, Error>> GenerateAllChunksUploadUrlsAsync(
+        StorageKey storageKey,
+        string uploadId,
+        int totalChunks,
+        CancellationToken cancellationToken);
+
+    Task<Result<string, Error>> CompleteMultipartUploadAsync(
+        StorageKey storageKey,
+        string uploadId,
+        IReadOnlyList<PartETagDto> partETags,
+        CancellationToken cancellationToken);
+
+    Task<UnitResult<Error>> AbortMultipartUploadAsync(
+        StorageKey storageKey,
+        string uploadId,
+        CancellationToken cancellationToken);
+
     Task<UnitResult<Error>> UploadFileAsync(
         Stream stream,
-        string bucketName,
-        StorageKey key,
+        StorageKey storageKey,
         string contentType,
         CancellationToken cancellationToken);
 
     Task<Result<string, Error>> GenerateDownloadUrlAsync(
-        string bucketName,
-        StorageKey key,
+        StorageKey storageKey,
         CancellationToken cancellationToken);
 
     Task<Result<string, Error>> GenerateUploadUrlAsync(
-        string bucketName,
-        StorageKey key,
-        string contentType,
-        CancellationToken cancellationToken);
+        StorageKey storageKey,
+        string contentType);
 
-    Task<Result<ObjectMetadata, Error>> GetObjectMetadataAsync(
-        string bucketName,
-        StorageKey key,
+    Task<Result<StorageMetadata, Error>> GetObjectMetadataAsync(
+        StorageKey storageKey,
         CancellationToken cancellationToken);
 
     Task<UnitResult<Error>> DeleteObjectAsync(
-        string bucketName,
-        StorageKey key,
+        StorageKey storageKey,
         CancellationToken cancellationToken);
 
     Task<UnitResult<Error>> EnsureBucketExistsAsync(

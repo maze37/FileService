@@ -3,7 +3,7 @@ using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
 using Shared.Result;
 
-namespace FileService.Domain;
+namespace FileService.Domain.Assets;
 
 public abstract class MediaAsset
 {
@@ -25,11 +25,16 @@ public abstract class MediaAsset
     /// Данные о расположении медиафайла.
     /// </summary>
     public StorageKey StorageKey { get; protected set; } = null!;
+
+    /// <summary>
+    /// Информация о весе и
+    /// </summary>
+    public StorageMetadata StorageMetadata { get; private set; } = null!;
     
     /// <summary>
-    /// 
+    /// Каждая часть мультипарт загрузки имеет одинаковый uploadId
     /// </summary>
-    public StorageMetadata? StorageMetadata { get; protected set; }
+    public string? UploadId { get; private set; }
     
     /// <summary>
     /// Назначение ассета.
@@ -76,43 +81,60 @@ public abstract class MediaAsset
         IsTemporary = false;
         CreatedWhen = DateTimeOffset.UtcNow;
     }
+    
+    public static Result<MediaAsset, Error> CreateForUpload(
+        AssetType assetType,
+        MediaData mediaData,
+        MediaOwner owner,
+        StorageKey storageKey)
+    {
+        return assetType switch
+        {
+            AssetType.VIDEO =>
+                VideoAsset.Create(mediaData, owner, storageKey)
+                    .Map(asset => (MediaAsset)asset),
 
-    public UnitResult<Error> BeginUpload(DateTimeOffset updatedTime)
+            AssetType.AUDIO =>
+                AudioAsset.Create(mediaData, owner, storageKey)
+                    .Map(asset => (MediaAsset)asset),
+
+            AssetType.DOCUMENT =>
+                DocumentAsset.Create(mediaData, owner, storageKey)
+                    .Map(asset => (MediaAsset)asset),
+
+            AssetType.AVATAR or AssetType.COVER or AssetType.PREVIEW or AssetType.THUMBNAIL =>
+                PreviewAsset.Create(mediaData, owner, storageKey, assetType)
+                    .Map(asset => (MediaAsset)asset),
+
+            _ => Error.Validation("asset.type.unsupported", $"Неподдерживаемый тип asset-а: {assetType}")
+        };
+    }
+    
+    public UnitResult<Error> AttachUploadId(string uploadId)
+    {
+        if (Status is not MediaStatus.UPLOADING)
+            return Error.Failure("media.asset.invalid_status", "Нельзя привязать uploadId вне процесса загрузки");
+
+        UploadId = uploadId;
+        return UnitResult.Success<Error>();
+    }
+
+    public UnitResult<Error> BeginUpload()
     {
         if (Status != MediaStatus.PENDING)
             return Error.Conflict("media.asset.cannot.begin.upload", $"Нельзя начать загрузку: текущий статус {Status}");
 
         Status = MediaStatus.UPLOADING;
-        UpdatedWhen = updatedTime;
+        UpdatedWhen = DateTimeOffset.UtcNow;
         return UnitResult.Success<Error>();
     }
 
-    public UnitResult<Error> CompleteUpload(StorageMetadata storageMetadata, DateTimeOffset updatedTime)
+    public UnitResult<Error> MarkUploaded()
     {
         if (Status != MediaStatus.UPLOADING)
             return Error.Conflict("media.asset.cannot.complete.upload", $"Нельзя завершить загрузку: текущий статус {Status}");
         
-        if (storageMetadata.ActualSizeBytes != MediaData.FileSize.Bytes)
-            return Error.Conflict("media.asset.size.mismatch",
-                $"Фактический размер файла ({storageMetadata.ActualSizeBytes}) не совпадает с заявленным ({MediaData.FileSize.Bytes})");
-
-        if (!string.Equals(storageMetadata.ActualContentType, MediaData.ContentType.Value, StringComparison.OrdinalIgnoreCase))
-            return Error.Conflict("media.asset.content_type.mismatch",
-                $"Фактический content-type ({storageMetadata.ActualContentType}) не совпадает с заявленным ({MediaData.ContentType.Value})");
-
-        StorageMetadata = storageMetadata;
-        Status = MediaStatus.READY;
-        UpdatedWhen = updatedTime;
-
-        return UnitResult.Success<Error>();
-    }
-
-    public UnitResult<Error> MarkAsError(string errorMessage)
-    {
-        if (Status is MediaStatus.DELETED or MediaStatus.READY)
-            return Error.Conflict("media.asset.cannot.mark.error", $"Нельзя отметить как ошибку: текущий статус {Status}");
-        
-        Status = MediaStatus.ERROR;
+        Status = MediaStatus.UPLOADED;
         UpdatedWhen = DateTimeOffset.UtcNow;
         return UnitResult.Success<Error>();
     }
@@ -142,14 +164,22 @@ public abstract class MediaAsset
         UpdatedWhen = DateTimeOffset.UtcNow;
         return UnitResult.Success<Error>();
     }
-
-    public UnitResult<Error> MakePermanent()
+    
+    public UnitResult<Error> CompleteUpload(StorageMetadata metadata)
     {
-        if (!IsTemporary)
-            return Error.Conflict("media.asset.already.permanent", "Файл уже постоянный");
+        if (Status != MediaStatus.UPLOADING)
+            return Error.Conflict("media.asset.cannot.complete", $"Нельзя завершить файл: текущий статус {Status}");
 
-        IsTemporary = false;
-        UpdatedWhen = DateTimeOffset.UtcNow;
+        if (metadata.SizeBytes != MediaData.FileSize.Bytes)
+            return Error.Conflict("media.asset.size.mismatch",
+                $"Размер объекта в хранилище ({metadata.SizeBytes}) не совпадает с заявленным ({MediaData.FileSize.Bytes})");
+
+        if (!string.Equals(metadata.ContentType, MediaData.ContentType.Value, StringComparison.OrdinalIgnoreCase))
+            return Error.Conflict("media.asset.content_type.mismatch",
+                $"Content-Type объекта в хранилище ({metadata.ContentType}) не совпадает с заявленным ({MediaData.ContentType.Value})");
+
+        StorageMetadata = metadata;
+        Status = MediaStatus.UPLOADED;
         return UnitResult.Success<Error>();
     }
 }
