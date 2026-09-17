@@ -50,8 +50,7 @@ public class S3Provider : IDisposable, IS3Provider
                 ContentType = contentType
             };
             
-            InitiateMultipartUploadResponse result = await _s3Client
-                .InitiateMultipartUploadAsync(request, cancellationToken);
+            InitiateMultipartUploadResponse result = await _s3Client.InitiateMultipartUploadAsync(request, cancellationToken);
 
             return result.UploadId;
         }
@@ -88,9 +87,9 @@ public class S3Provider : IDisposable, IS3Provider
                             Protocol = _s3Options.WithSsl ? Protocol.HTTPS : Protocol.HTTP
                         };
 
-                        string? url = await _presignClient.GetPreSignedURLAsync(request);
+                        string? response = await _presignClient.GetPreSignedURLAsync(request);
 
-                        return new ChunkUploadUrl(partNumber, url);
+                        return new ChunkUploadUrl(partNumber, response);
                     }
                     finally
                     {
@@ -214,9 +213,9 @@ public class S3Provider : IDisposable, IS3Provider
                 Protocol = _s3Options.WithSsl ? Protocol.HTTPS : Protocol.HTTP
             };
         
-            string url = await _presignClient.GetPreSignedURLAsync(request);
+            string response = await _presignClient.GetPreSignedURLAsync(request);
             
-            return url;
+            return response;
         }
         catch (AmazonS3Exception ex)
         {
@@ -379,6 +378,9 @@ public class S3Provider : IDisposable, IS3Provider
             return S3ErrorMapper.ToError(ex);
         }
     }
+
+    private string ReplaceEndpoint(string presignedUrl) =>
+        presignedUrl.Replace(_s3Options.Endpoint, _s3Options.ExternalEndpoint, StringComparison.OrdinalIgnoreCase);
 
     public void Dispose()
     {

@@ -14,6 +14,7 @@ public static class Inject
     {
         services.Configure<S3Options>(configuration.GetSection(nameof(S3Options)));
 
+        // Внутренний клиент - для всех операций из backend
         services.AddSingleton<IAmazonS3>(sp =>
         {
             S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
@@ -28,17 +29,16 @@ public static class Inject
             return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
         });
         
+        // Presign-клиент - подписывает URL под внешний хост, который увидит браузер
         services.AddKeyedSingleton<IAmazonS3>(S3ClientKeys.PRESIGN, (sp, _) =>
         {
-            S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
-
+            var s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
             var config = new AmazonS3Config
             {
-                ServiceURL = s3Options.PublicEndpoint,
+                ServiceURL = s3Options.ExternalEndpoint,
                 ForcePathStyle = true,
                 UseHttp = !s3Options.WithSsl
             };
-
             return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
         });
         

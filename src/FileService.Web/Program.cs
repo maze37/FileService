@@ -25,13 +25,14 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
+    throw;
 }
 finally
 {
     Log.CloseAndFlush();
 }
 
-namespace FileService.Web
+namespace DirectoryService.Presentation
 {
     public partial class Program;
 }
