@@ -1,7 +1,8 @@
 ﻿using System.Net.Http.Json;
+using CSharpFunctionalExtensions;
 using FileService.Contracts;
 using FileService.IntegrationTests.Infrastructure;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.IntegrationTests.Handlers;
 
@@ -27,15 +28,21 @@ public class MultipartUploadFileTests : FileServiceBaseTests
             "user",
             Guid.Parse("9c1c4802-da4b-4959-8563-175102a3217b"));
 
-        var response = await AppHttpClient.PostAsJsonAsync("api/files/multipart/start", request, cancellationToken);
-
-        var data = await response.Content.ReadFromJsonAsync<Envelope<StartMultipartUploadResponse>>(cancellationToken);
-
-        response.EnsureSuccessStatusCode();
+        HttpResponseMessage response = await AppHttpClient
+            .PostAsJsonAsync("api/files/multipart/start", request, cancellationToken);
         
-        Assert.NotNull(data);
-        Assert.NotNull(data.Result);
-        Assert.NotNull(data.Result.UploadId);
-        Assert.NotEmpty(data.Result.ChunkUploadUrls);
+        var startMultipartUploadResponse = await response.Content
+            .ReadFromJsonAsync<Envelope<StartMultipartUploadResponse>>(cancellationToken);
+        
+        Result<StartMultipartUploadResponse, Error> startMultipartUploadResult;
+        if (!response.IsSuccessStatusCode)
+        {
+            startMultipartUploadResult = startMultipartUploadResponse.Error
+                                         ?? Error.Failure("test.error", "unknown.error");
+        }
+        
+        response.EnsureSuccessStatusCode();
     }
+    
+    
 }

@@ -1,7 +1,7 @@
 ﻿using CSharpFunctionalExtensions;
 using FileService.Core.Abstractions;
 using Microsoft.Extensions.Options;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Infrastructure.S3;
 
@@ -18,7 +18,7 @@ public class ChunkSizeCalculator : IChunkSizeCalculator
         long fileSize)
     {
         if (_s3Options.RecommendedChunkSizeBytes <= 0 || _s3Options.MaxChunks <= 0)
-            return GeneralErrors.ValueIsInvalid(null, "Настройки чанков.");
+            return GeneralErrors.ValueIsInvalid("Неправильные данные настройки чанков.");
 
         if (fileSize <= _s3Options.RecommendedChunkSizeBytes)
             return (fileSize, 1);

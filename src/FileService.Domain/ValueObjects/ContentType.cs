@@ -1,6 +1,6 @@
 ﻿using CSharpFunctionalExtensions;
 using FileService.Domain.Enums;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Domain.ValueObjects;
 

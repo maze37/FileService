@@ -1,7 +1,7 @@
 using Core.Abstractions;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Queries.GetFile;
 

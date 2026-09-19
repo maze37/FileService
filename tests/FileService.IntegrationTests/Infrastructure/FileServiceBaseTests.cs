@@ -1,6 +1,6 @@
 ﻿namespace FileService.IntegrationTests.Infrastructure;
 
-public class FileServiceBaseTests : IClassFixture<IntegrationTestsWebFactory>
+public class FileServiceBaseTests : IClassFixture<IntegrationTestsWebFactory>, IAsyncLifetime
 {
     public HttpClient AppHttpClient { get; init; }
     public HttpClient HttpClient { get; init; }
@@ -12,4 +12,7 @@ public class FileServiceBaseTests : IClassFixture<IntegrationTestsWebFactory>
         HttpClient = new HttpClient();
         Services = factory.Services;
     }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+    public Task DisposeAsync() => Task.CompletedTask;
 }

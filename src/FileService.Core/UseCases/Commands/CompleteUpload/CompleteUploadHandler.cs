@@ -4,29 +4,25 @@ using CSharpFunctionalExtensions;
 using FileService.Contracts;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
-using FileService.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Commands.CompleteUpload;
 
 public class CompleteUploadHandler : ICommandHandler<CompleteUploadCommand, CompleteUploadResponse>
 {
     private readonly ITransactionManager _transactionManager;
-    private readonly IDateTimeProvider _dateTime;
     private readonly ILogger<CompleteUploadHandler> _logger;
     private readonly IMediaAssetRepository _mediaAssetRepository;
     private readonly IS3Provider _s3Provider;
 
     public CompleteUploadHandler(
         ITransactionManager transactionManager,
-        IDateTimeProvider dateTime,
         ILogger<CompleteUploadHandler> logger,
         IMediaAssetRepository mediaAssetRepository,
         IS3Provider s3Provider)
     {
         _transactionManager = transactionManager;
-        _dateTime = dateTime;
         _logger = logger;
         _mediaAssetRepository = mediaAssetRepository;
         _s3Provider = s3Provider;

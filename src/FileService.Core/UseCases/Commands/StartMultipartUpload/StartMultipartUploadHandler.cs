@@ -8,7 +8,7 @@ using FileService.Domain.Assets;
 using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Commands.StartMultipartUpload;
 

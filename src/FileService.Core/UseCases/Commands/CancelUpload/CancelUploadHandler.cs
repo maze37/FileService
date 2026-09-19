@@ -3,29 +3,25 @@ using Core.Database;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
 using FileService.Core.Abstractions;
-using FileService.Domain.Enums;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Commands.CancelUpload;
 
 public class CancelUploadHandler : ICommandHandler<CancelUploadCommand, CancelUploadResponse>
 {
     private readonly ITransactionManager _transactionManager;
-    private readonly IDateTimeProvider _dateTime;
     private readonly ILogger<CancelUploadHandler> _logger;
     private readonly IMediaAssetRepository _mediaAssetRepository;
     private readonly IS3Provider _s3Provider;
 
     public CancelUploadHandler(
         ITransactionManager transactionManager,
-        IDateTimeProvider dateTime,
         ILogger<CancelUploadHandler> logger,
         IMediaAssetRepository mediaAssetRepository,
         IS3Provider s3Provider)
     {
         _transactionManager = transactionManager;
-        _dateTime = dateTime;
         _logger = logger;
         _mediaAssetRepository = mediaAssetRepository;
         _s3Provider = s3Provider;

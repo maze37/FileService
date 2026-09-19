@@ -4,8 +4,7 @@ using FileService.Contracts;
 using FileService.Core.Abstractions;
 using FileService.Domain;
 using FileService.Domain.Enums;
-using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
 

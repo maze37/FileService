@@ -9,7 +9,7 @@ using FileService.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Shared.Result;
+using SharedKernel;
 using AbortMultipartUploadRequest = Amazon.S3.Model.AbortMultipartUploadRequest;
 using CompleteMultipartUploadRequest = Amazon.S3.Model.CompleteMultipartUploadRequest;
 
