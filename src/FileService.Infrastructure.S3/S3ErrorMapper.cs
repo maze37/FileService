@@ -1,6 +1,6 @@
 ﻿using Amazon.S3;
 using FileService.Domain.Errors;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Infrastructure.S3;
 

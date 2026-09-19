@@ -1,7 +1,7 @@
 ﻿using CSharpFunctionalExtensions;
 using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Domain.Assets;
 

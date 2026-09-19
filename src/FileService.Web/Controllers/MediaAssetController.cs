@@ -1,4 +1,3 @@
-using Amazon.S3.Model;
 using Core.Abstractions;
 using FileService.Contracts;
 using FileService.Core.UseCases.Commands.AbortMultipartUpload;
@@ -12,7 +11,7 @@ using FileService.Core.UseCases.Queries.GetFile;
 using FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
 using Framework.ResponseExtensions;
 using Microsoft.AspNetCore.Mvc;
-using Shared.Result;
+using SharedKernel;
 using AbortMultipartUploadRequest = FileService.Contracts.AbortMultipartUploadRequest;
 using AbortMultipartUploadResponse = FileService.Contracts.AbortMultipartUploadResponse;
 using CompleteMultipartUploadRequest = FileService.Contracts.CompleteMultipartUploadRequest;

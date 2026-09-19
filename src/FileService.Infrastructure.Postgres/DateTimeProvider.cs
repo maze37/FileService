@@ -1,4 +1,4 @@
-using Core.Abstractions;
+using FileService.Core.Abstractions;
 
 namespace FileService.Infrastructure.Postgres;
 

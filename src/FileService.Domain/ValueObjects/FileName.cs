@@ -1,5 +1,5 @@
 ﻿using CSharpFunctionalExtensions;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Domain.ValueObjects;
 
@@ -26,15 +26,15 @@ public sealed class FileName : ValueObject
     public static Result<FileName, Error> Create(string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName))
-            return GeneralErrors.ValueIsInvalid(nameof(fileName), "Название файла не может быть пустым.");
+            return GeneralErrors.ValueIsInvalid(nameof(fileName));
         
         if (fileName.Length > MAX_LENGTH)
-                return GeneralErrors.ValueIsInvalid(nameof(fileName), "Название файла слишком длинное.");
+                return GeneralErrors.ValueIsInvalid(nameof(fileName));
         
         int lastDot = fileName.LastIndexOf('.');
         if (lastDot == -1 || lastDot == fileName.Length - 1)
         {
-            return GeneralErrors.ValueIsInvalid(null, "Файл должен иметь расширение.");
+            return GeneralErrors.ValueIsInvalid(nameof(fileName));
         }
 
         string namePart = fileName[..lastDot];

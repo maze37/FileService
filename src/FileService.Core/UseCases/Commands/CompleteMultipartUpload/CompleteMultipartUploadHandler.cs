@@ -5,7 +5,7 @@ using FileService.Contracts;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Commands.CompleteMultipartUpload;
 
@@ -78,7 +78,7 @@ public class CompleteMultipartUploadHandler : ICommandHandler<CompleteMultipartU
                 return cleanupResult.Error;
             
             _logger.LogError("Не удалось удалить невалидный объект {Key} после mismatch: {Error}", 
-                mediaAsset.StorageKey.Value, cleanupResult.Error.Message);
+                mediaAsset.StorageKey.Value, cleanupResult.Error.Messages);
             
             return completeResult.Error;
         }
