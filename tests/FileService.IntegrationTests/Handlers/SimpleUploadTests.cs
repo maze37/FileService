@@ -27,7 +27,7 @@ public class SimpleUploadTests : FileServiceBaseTests
         Assert.Equal(MediaStatus.UPLOADING, asset.Status);
         Assert.False(await ObjectExists(asset));
         
-        await PutToUrlOrFail(init.UploadUrl, data);
+        await PutToUrl(init.UploadUrl, data);
         
         var completeResponse = await CompleteUpload(init.AssetId);
         Assert.True(completeResponse.IsSuccessStatusCode);

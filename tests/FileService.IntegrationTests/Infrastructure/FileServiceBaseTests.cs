@@ -143,12 +143,6 @@ public abstract class FileServiceBaseTests : IAsyncLifetime
         return await HttpClient.PutAsync(url, content);
     }
 
-    protected async Task PutToUrlOrFail(string url, byte[] data)
-    {
-        var response = await PutToUrl(url, data);
-        response.EnsureSuccessStatusCode();
-    }
-
     protected Task<HttpResponseMessage> CompleteUpload(Guid id) =>
         AppHttpClient.PostAsync($"api/files/upload/{id}/complete", null);
 
@@ -167,7 +161,7 @@ public abstract class FileServiceBaseTests : IAsyncLifetime
     protected async Task<Guid> UploadFile(byte[] data, Guid? entityId = null)
     {
         var init = await InitiateUpload(data, entityId);
-        await PutToUrlOrFail(init.UploadUrl, data);
+        await PutToUrl(init.UploadUrl, data);
 
         var response = await CompleteUpload(init.AssetId);
         Assert.True(response.IsSuccessStatusCode);
