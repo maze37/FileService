@@ -378,10 +378,7 @@ public class S3Provider : IDisposable, IS3Provider
             return S3ErrorMapper.ToError(ex);
         }
     }
-
-    private string ReplaceEndpoint(string presignedUrl) =>
-        presignedUrl.Replace(_s3Options.Endpoint, _s3Options.ExternalEndpoint, StringComparison.OrdinalIgnoreCase);
-
+    
     public void Dispose()
     {
         _requestsSemaphore.Dispose();

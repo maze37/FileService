@@ -32,7 +32,7 @@ finally
     Log.CloseAndFlush();
 }
 
-namespace DirectoryService.Presentation
+namespace FileService.Web
 {
     public partial class Program;
 }
