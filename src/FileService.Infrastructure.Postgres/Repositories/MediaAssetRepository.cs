@@ -3,7 +3,7 @@ using CSharpFunctionalExtensions;
 using FileService.Core.Abstractions;
 using FileService.Domain.Assets;
 using Microsoft.EntityFrameworkCore;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Infrastructure.Postgres.Repositories;
 
@@ -55,7 +55,7 @@ public class MediaAssetRepository : IMediaAssetRepository
                 .FirstOrDefaultAsync(predicate, cancellationToken);
 
             if (mediaAsset is null)
-                return Errors.General.NotFound(name: "mediaAsset");
+                return GeneralErrors.NotFound(null, "mediaAsset");
 
             return mediaAsset;
         }

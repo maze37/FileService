@@ -2,7 +2,7 @@ using System.Data;
 using Core.Database;
 using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Infrastructure.Postgres.Database;
 

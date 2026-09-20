@@ -1,9 +1,9 @@
 ﻿using CSharpFunctionalExtensions;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.Abstractions;
 
 public interface IChunkSizeCalculator
 {
-    Result<(long ChunkSize, int TotalChunks), Error> CalculateChunkSize(long fileSize);
+    Result<(int ChunkSize, int TotalChunks), Error> CalculateChunkSize(long fileSize);
 }

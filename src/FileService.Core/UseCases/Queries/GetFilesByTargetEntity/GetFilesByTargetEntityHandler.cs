@@ -4,8 +4,7 @@ using FileService.Contracts;
 using FileService.Core.Abstractions;
 using FileService.Domain;
 using FileService.Domain.Enums;
-using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
 
@@ -35,9 +34,9 @@ public class GetFilesByTargetEntityHandler : IQueryHandlerWithResult<GetFilesByT
             .Where(a => a.Status != MediaStatus.DELETED)
             .Select(a => new FileDto(
                 a.Id,
-                a.MediaData.FileName.Value,
-                a.MediaData.ContentType.Value,
-                a.MediaData.FileSize.Bytes,
+                a.MediaData.FileName,
+                a.MediaData.ContentType,
+                a.MediaData.FileSize,
                 a.Status.ToString(),
                 a.AssetType.ToString()))
             .ToList();

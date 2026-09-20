@@ -1,4 +1,3 @@
-using Core.Constants;
 using FileService.Contracts;
 using FileService.Domain;
 using FileService.Domain.Assets;
@@ -64,7 +63,7 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
 
             md.OwnsOne(m => m.FileSize, fs =>
             {
-                fs.Property(f => f.Bytes).HasColumnName("file_size_bytes").IsRequired();
+                fs.Property(f => f.Value).HasColumnName("file_size_bytes").IsRequired();
             });
 
             md.Property(m => m.ExpectedChunksCount).HasColumnName("expected_chunks_count").IsRequired();
@@ -111,6 +110,8 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
             sm.Property(x => x.SizeBytes).HasColumnName("storage_metadata_actual_size_bytes");
             sm.Property(x => x.ETag).HasColumnName("storage_metadata_e_tag");
         });
+        
+        builder.Navigation(a => a.StorageMetadata).IsRequired(false);
         
         builder.HasIndex(x => x.Status).HasDatabaseName("ix_media_assets_status");
         builder.HasIndex(x => x.AssetType).HasDatabaseName("ix_media_assets_asset_type");

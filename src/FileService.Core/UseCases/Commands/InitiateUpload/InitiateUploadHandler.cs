@@ -8,29 +8,29 @@ using FileService.Domain.Assets;
 using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Commands.InitiateUpload;
 
 public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, InitiateUploadResponse>
 {
     private readonly ITransactionManager _transactionManager;
-    private readonly IDateTimeProvider _dateTime;
     private readonly ILogger<InitiateUploadHandler> _logger;
     private readonly IMediaAssetRepository _mediaAssetRepository;
+    private readonly IDateTimeProvider _dateTimeProvider;
     private readonly IS3Provider _s3Provider;
     
     public InitiateUploadHandler(
         ITransactionManager transactionManager,
-        IDateTimeProvider dateTime,
         ILogger<InitiateUploadHandler> logger,
         IMediaAssetRepository mediaAssetRepository,
+        IDateTimeProvider dateTimeProvider,
         IS3Provider s3Provider)
     {
         _transactionManager = transactionManager;
-        _dateTime = dateTime;
         _logger = logger;
         _mediaAssetRepository = mediaAssetRepository;
+        _dateTimeProvider = dateTimeProvider;
         _s3Provider = s3Provider;
     }
 
@@ -39,15 +39,15 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
     CancellationToken cancellationToken)
     {
         // Создание и валидация VO
-        var fileNameResult = FileName.Create(command.FileName);
+        var fileNameResult = FileName.Create(command.Request.FileName);
         if (fileNameResult.IsFailure)
             return fileNameResult.Error;
 
-        var contentTypeResult = ContentType.Create(command.ContentType);
+        var contentTypeResult = ContentType.Create(command.Request.ContentType);
         if (contentTypeResult.IsFailure)
             return contentTypeResult.Error;
 
-        var fileSizeResult = FileSize.Create(command.FileSize);
+        var fileSizeResult = FileSize.Create(command.Request.FileSize);
         if (fileSizeResult.IsFailure)
             return fileSizeResult.Error;
 
@@ -61,13 +61,13 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
             return mediaDataResult.Error;
 
         // Создание владельца
-        var mediaOwnerResult = MediaOwner.Create(command.Context, command.EntityId);
+        var mediaOwnerResult = MediaOwner.Create(command.Request.Context, command.Request.EntityId);
         if (mediaOwnerResult.IsFailure)
             return mediaOwnerResult.Error;
         
-        var assetType = AssetTypeExtensions.ToAssetType(command.AssetType);
+        var assetType = AssetTypeExtensions.ToAssetType(command.Request.AssetType);
         
-        string prefix = command.Context.ToLower();
+        string prefix = command.Request.Context.ToLower();
         string bucket = assetType.ToBucketName();
 
         var storageKeyResult = StorageKey.CreateNew(bucket, prefix);
@@ -106,7 +106,7 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
         if (commitResult.IsFailure)
             return commitResult.Error;
 
-        var expiresWhen = _dateTime.UtcNow.AddHours(24);
+        var expiresWhen = _dateTimeProvider.UtcNow.AddHours(24);
 
         return new InitiateUploadResponse(
             mediaAssetResult.Value.Id,

@@ -1,15 +1,13 @@
-using System.Transactions;
 using Core.Database;
-
-namespace FileService.Infrastructure.Postgres.Database;
-
 using System.Data;
 using CSharpFunctionalExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Npgsql;
-using Shared.Result;
+using SharedKernel;
+
+namespace FileService.Infrastructure.Postgres.Database;
 
 /// <inheritdoc/>
 public class TransactionManager : ITransactionManager

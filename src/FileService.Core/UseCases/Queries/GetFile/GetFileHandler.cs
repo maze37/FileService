@@ -4,7 +4,7 @@ using FileService.Contracts;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Queries.GetFile;
 
@@ -58,9 +58,9 @@ public class GetFileHandler : IQueryHandlerWithResult<GetFileQuery, GetFileRespo
 
         return new GetFileResponse(
             asset.Id,
-            asset.MediaData.FileName.Value,
-            asset.MediaData.ContentType.Value,
-            asset.MediaData.FileSize.Bytes,
+            asset.MediaData.FileName,
+            asset.MediaData.ContentType,
+            asset.MediaData.FileSize,
             asset.AssetType.ToString(),
             asset.Status.ToString(),
             asset.MediaOwner.Context,

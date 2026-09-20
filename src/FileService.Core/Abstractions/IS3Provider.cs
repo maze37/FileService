@@ -1,7 +1,7 @@
 ﻿using CSharpFunctionalExtensions;
 using FileService.Contracts;
 using FileService.Domain.ValueObjects;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.Abstractions;
 

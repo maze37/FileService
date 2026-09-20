@@ -1,9 +1,9 @@
-namespace FileService.Domain.Assets;
-
 using CSharpFunctionalExtensions;
 using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
-using Shared.Result;
+using SharedKernel;
+
+namespace FileService.Domain.Assets;
 
 /// <summary>
 /// Аудио-ресурс (подкасты, озвучка уроков и т.д.)

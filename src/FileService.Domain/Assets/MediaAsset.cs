@@ -1,7 +1,7 @@
 ﻿using CSharpFunctionalExtensions;
 using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Domain.Assets;
 
@@ -170,9 +170,9 @@ public abstract class MediaAsset
         if (Status != MediaStatus.UPLOADING)
             return Error.Conflict("media.asset.cannot.complete", $"Нельзя завершить файл: текущий статус {Status}");
 
-        if (metadata.SizeBytes != MediaData.FileSize.Bytes)
+        if (metadata.SizeBytes != MediaData.FileSize)
             return Error.Conflict("media.asset.size.mismatch",
-                $"Размер объекта в хранилище ({metadata.SizeBytes}) не совпадает с заявленным ({MediaData.FileSize.Bytes})");
+                $"Размер объекта в хранилище ({metadata.SizeBytes}) не совпадает с заявленным ({MediaData.FileSize})");
 
         if (!string.Equals(metadata.ContentType, MediaData.ContentType.Value, StringComparison.OrdinalIgnoreCase))
             return Error.Conflict("media.asset.content_type.mismatch",

@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using CSharpFunctionalExtensions;
 using FileService.Domain.Assets;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.Abstractions;
 

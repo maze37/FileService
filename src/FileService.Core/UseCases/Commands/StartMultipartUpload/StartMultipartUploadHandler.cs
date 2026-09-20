@@ -8,7 +8,7 @@ using FileService.Domain.Assets;
 using FileService.Domain.Enums;
 using FileService.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
-using Shared.Result;
+using SharedKernel;
 
 namespace FileService.Core.UseCases.Commands.StartMultipartUpload;
 
@@ -50,7 +50,7 @@ public class StartMultipartUploadHandler : ICommandHandler<StartMultipartUploadC
         if (fileSizeResult.IsFailure)
             return fileSizeResult.Error;
         
-        Result<(long ChunkSize, int TotalChunks), Error> chunkCalculationResult = _chunkSizeCalculator
+        Result<(int ChunkSize, int TotalChunks), Error> chunkCalculationResult = _chunkSizeCalculator
             .CalculateChunkSize(fileSizeResult.Value);
         if (chunkCalculationResult.IsFailure)
             return chunkCalculationResult.Error;

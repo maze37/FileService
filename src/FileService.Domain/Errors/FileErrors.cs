@@ -1,4 +1,4 @@
-﻿using Shared.Result;
+﻿using SharedKernel;
 
 namespace FileService.Domain.Errors;
 

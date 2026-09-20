@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <PackageReference Include="mazeland.core" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\FileService.Contracts\FileService.Contracts.csproj" />
     <ProjectReference Include="..\FileService.Domain\FileService.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="mazeland.core" />
   </ItemGroup>
 </Project>
