@@ -50,7 +50,7 @@ public class StartMultipartUploadHandler : ICommandHandler<StartMultipartUploadC
         if (fileSizeResult.IsFailure)
             return fileSizeResult.Error;
         
-        Result<(long ChunkSize, int TotalChunks), Error> chunkCalculationResult = _chunkSizeCalculator
+        Result<(int ChunkSize, int TotalChunks), Error> chunkCalculationResult = _chunkSizeCalculator
             .CalculateChunkSize(fileSizeResult.Value);
         if (chunkCalculationResult.IsFailure)
             return chunkCalculationResult.Error;

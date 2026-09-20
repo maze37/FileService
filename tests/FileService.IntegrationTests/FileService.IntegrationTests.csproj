@@ -11,6 +11,7 @@
         <PackageReference Include="coverlet.collector" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="Respawn" />
         <PackageReference Include="Testcontainers.Minio" />
         <PackageReference Include="Testcontainers.PostgreSql" />
         <PackageReference Include="xunit" />
@@ -27,6 +28,16 @@
       <ProjectReference Include="..\..\src\FileService.Infrastructure.Postgres\FileService.Infrastructure.Postgres.csproj" />
       <ProjectReference Include="..\..\src\FileService.Infrastructure.S3\FileService.Infrastructure.S3.csproj" />
       <ProjectReference Include="..\..\src\FileService.Web\FileService.Web.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Resources\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Resources\video.mp4">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

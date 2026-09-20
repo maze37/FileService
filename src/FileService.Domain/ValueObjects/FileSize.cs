@@ -8,14 +8,14 @@ public sealed class FileSize : ValueObject
     // 5 гб
     public const long MAX_BYTES = 5L * 1024 * 1024 * 1024;
 
-    public long Bytes { get; }
+    public long Value { get; }
     
     // EF Core
     private FileSize() { }
 
     private FileSize(long bytes)
     {
-        Bytes = bytes;
+        Value = bytes;
     }
 
     public static Result<FileSize, Error> Create(long bytes)
@@ -31,8 +31,8 @@ public sealed class FileSize : ValueObject
 
     protected override IEnumerable<object> GetEqualityComponents()
     {
-        yield return Bytes;
+        yield return Value;
     }
 
-    public static implicit operator long(FileSize size) => size.Bytes;
+    public static implicit operator long(FileSize size) => size.Value;
 }

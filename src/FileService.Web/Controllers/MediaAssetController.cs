@@ -60,13 +60,7 @@ public class MediaAssetController : ControllerBase
         [FromBody] InitiateUploadRequest request,
         CancellationToken cancellationToken)
     {
-        var command = new InitiateUploadCommand(
-            request.FileName, 
-            request.ContentType, 
-            request.FileSize, 
-            request.Context, 
-            request.EntityId,
-            request.AssetType);
+        var command = new InitiateUploadCommand(request);
         var response = await _initiateUploadHandler.HandleAsync(command, cancellationToken);
         if (response.IsFailure)
             return response.Error.ToResponse();

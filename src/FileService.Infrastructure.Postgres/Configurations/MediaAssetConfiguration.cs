@@ -63,7 +63,7 @@ public class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAsset>
 
             md.OwnsOne(m => m.FileSize, fs =>
             {
-                fs.Property(f => f.Bytes).HasColumnName("file_size_bytes").IsRequired();
+                fs.Property(f => f.Value).HasColumnName("file_size_bytes").IsRequired();
             });
 
             md.Property(m => m.ExpectedChunksCount).HasColumnName("expected_chunks_count").IsRequired();

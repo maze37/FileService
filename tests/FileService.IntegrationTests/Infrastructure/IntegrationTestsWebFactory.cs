@@ -1,4 +1,6 @@
-﻿using Amazon.S3;
+﻿using System.Data.Common;
+using Amazon.S3;
+using Amazon.S3.Model;
 using FileService.Core.Abstractions;
 using FileService.Infrastructure.Postgres;
 using FileService.Infrastructure.S3;
@@ -10,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Npgsql;
+using Respawn;
 using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
 
@@ -28,6 +32,9 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
         .WithUsername("minioadmin")
         .WithPassword("minioadmin")
         .Build();
+    
+    private Respawner _respawner = null!;
+    private DbConnection _dbConnection = null!;
     
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -101,6 +108,10 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
 
         await dbContext.Database.EnsureDeletedAsync();
         await dbContext.Database.EnsureCreatedAsync();
+        
+        _dbConnection = new NpgsqlConnection(_dbContainer.GetConnectionString());
+        await _dbConnection.OpenAsync();
+        await InitializeRespawner();
     }
 
     public async Task DisposeAsync()
@@ -110,5 +121,74 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
         
         await _minioContainer.StopAsync();
         await _minioContainer.DisposeAsync();
+        
+        if (_dbConnection is not null)
+        {
+            await _dbConnection.CloseAsync();
+            await _dbConnection.DisposeAsync();
+        }
+    }
+    
+    private async Task InitializeRespawner()
+    {
+        _respawner = await Respawner.CreateAsync(
+            _dbConnection,
+            new RespawnerOptions
+            { 
+                DbAdapter = DbAdapter.Postgres, 
+                SchemasToInclude = ["files"]
+            });
+    }
+    
+    /// <summary>
+    /// Полный сброс состояния между тестами: БД и содержимое бакетов.
+    /// </summary>
+    public async Task ResetAsync()
+    {
+        await ResetDatabaseAsync();
+        await ResetStorageAsync();
+    }
+ 
+    public async Task ResetDatabaseAsync()
+    {
+        await _respawner.ResetAsync(_dbConnection!);
+    }
+ 
+    /// <summary>
+    /// Очищает объекты и незавершённые multipart-загрузки. Сами бакеты остаются.
+    /// </summary>
+    public async Task ResetStorageAsync()
+    {
+        var s3 = Services.GetRequiredService<IAmazonS3>();
+        var options = Services.GetRequiredService<IOptions<S3Options>>().Value;
+ 
+        foreach (string bucket in options.RequiredBuckets)
+        {
+            // 1. Незавершённые multipart-загрузки (ListObjects их не показывает)
+            var uploads = await s3.ListMultipartUploadsAsync(bucket);
+            foreach (MultipartUpload upload in uploads.MultipartUploads ?? [])
+            {
+                await s3.AbortMultipartUploadAsync(bucket, upload.Key, upload.UploadId);
+            }
+ 
+            // 2. Объекты (страницами по 1000 — лимит DeleteObjects)
+            var request = new ListObjectsV2Request { BucketName = bucket };
+            ListObjectsV2Response page;
+            do
+            {
+                page = await s3.ListObjectsV2Async(request);
+ 
+                if (page.S3Objects is { Count: > 0 })
+                {
+                    await s3.DeleteObjectsAsync(new DeleteObjectsRequest
+                    {
+                        BucketName = bucket,
+                        Objects = page.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList(),
+                    });
+                }
+ 
+                request.ContinuationToken = page.NextContinuationToken;
+            } while (page.IsTruncated == true);
+        }
     }
 }

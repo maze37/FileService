@@ -39,15 +39,15 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
     CancellationToken cancellationToken)
     {
         // Создание и валидация VO
-        var fileNameResult = FileName.Create(command.FileName);
+        var fileNameResult = FileName.Create(command.Request.FileName);
         if (fileNameResult.IsFailure)
             return fileNameResult.Error;
 
-        var contentTypeResult = ContentType.Create(command.ContentType);
+        var contentTypeResult = ContentType.Create(command.Request.ContentType);
         if (contentTypeResult.IsFailure)
             return contentTypeResult.Error;
 
-        var fileSizeResult = FileSize.Create(command.FileSize);
+        var fileSizeResult = FileSize.Create(command.Request.FileSize);
         if (fileSizeResult.IsFailure)
             return fileSizeResult.Error;
 
@@ -61,13 +61,13 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
             return mediaDataResult.Error;
 
         // Создание владельца
-        var mediaOwnerResult = MediaOwner.Create(command.Context, command.EntityId);
+        var mediaOwnerResult = MediaOwner.Create(command.Request.Context, command.Request.EntityId);
         if (mediaOwnerResult.IsFailure)
             return mediaOwnerResult.Error;
         
-        var assetType = AssetTypeExtensions.ToAssetType(command.AssetType);
+        var assetType = AssetTypeExtensions.ToAssetType(command.Request.AssetType);
         
-        string prefix = command.Context.ToLower();
+        string prefix = command.Request.Context.ToLower();
         string bucket = assetType.ToBucketName();
 
         var storageKeyResult = StorageKey.CreateNew(bucket, prefix);
