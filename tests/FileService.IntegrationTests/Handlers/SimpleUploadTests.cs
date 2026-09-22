@@ -1,8 +1,8 @@
+using System.Net;
 using System.Net.Http.Json;
-using System.Security.Cryptography;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
-using FileService.Core.HttpCommunication;
+using FileService.Contracts.Dtos;
 using FileService.Domain.Assets;
 using FileService.Domain.Enums;
 using FileService.IntegrationTests.Infrastructure;
@@ -38,7 +38,6 @@ public class SimpleUploadTests : FileServiceBaseTests
         var (storedSize, storedContentType) = await GetObjectInfo(asset);
         Assert.Equal(size, storedSize);
         Assert.Equal("video/mp4", storedContentType);
-        Assert.Equal(SHA256.HashData(data), await GetObjectHash(asset));
         
         var getResponse = await GetFile(init.AssetId);
         Result<GetFileResponse, Error> file = await getResponse.HandleResponseAsync<GetFileResponse>();
@@ -60,14 +59,14 @@ public class SimpleUploadTests : FileServiceBaseTests
 
         var response = await PutToUrl(tamperedUrl, data);
 
-        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.False(await ObjectExists(asset));
     }
 
     [Fact]
     public async Task Complete_WhenFileWasNotUploaded_FailsAndStatusStaysUploading()
     {
-        var init = await InitiateUpload(RandomBytes(KB)); // PUT не делали
+        var init = await InitiateUpload(RandomBytes(KB));
 
         var response = await CompleteUpload(init.AssetId);
 

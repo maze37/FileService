@@ -4,6 +4,7 @@ using Amazon.S3.Model;
 using Amazon.S3.Util;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
+using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;

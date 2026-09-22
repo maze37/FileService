@@ -59,7 +59,6 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
             });
 
             services.RemoveAll<IAmazonS3>();
-
             services.AddSingleton<IAmazonS3>(sp =>
             {
                 S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
@@ -76,7 +75,6 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
             });
 
             services.RemoveAllKeyed<IAmazonS3>(S3ClientKeys.PRESIGN);
-
             services.AddKeyedSingleton<IAmazonS3>(S3ClientKeys.PRESIGN, (sp, _) =>
             {
                 S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
@@ -106,11 +104,11 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
         await using var scope = Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await dbContext.Database.EnsureDeletedAsync();
-        await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.MigrateAsync();
         
         _dbConnection = new NpgsqlConnection(_dbContainer.GetConnectionString());
         await _dbConnection.OpenAsync();
+        
         await InitializeRespawner();
     }
 
@@ -122,11 +120,8 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
         await _minioContainer.StopAsync();
         await _minioContainer.DisposeAsync();
         
-        if (_dbConnection is not null)
-        {
-            await _dbConnection.CloseAsync();
-            await _dbConnection.DisposeAsync();
-        }
+        await _dbConnection.CloseAsync();
+        await _dbConnection.DisposeAsync();
     }
     
     private async Task InitializeRespawner()
@@ -171,7 +166,7 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
                 await s3.AbortMultipartUploadAsync(bucket, upload.Key, upload.UploadId);
             }
  
-            // 2. Объекты (страницами по 1000 — лимит DeleteObjects)
+            // 2. Объекты (страницами по 1000, лимит DeleteObjects)
             var request = new ListObjectsV2Request { BucketName = bucket };
             ListObjectsV2Response page;
             do

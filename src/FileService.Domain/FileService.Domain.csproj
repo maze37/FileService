@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <PackageReference Include="CSharpFunctionalExtensions" />
-    <PackageReference Include="Mazeland.Framework" />
+    <PackageReference Include="Mazeland.Core" />
+    <PackageReference Include="Mazeland.SharedKernel" />
   </ItemGroup>
 </Project>

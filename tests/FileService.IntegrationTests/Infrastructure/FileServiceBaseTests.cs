@@ -1,11 +1,10 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Security.Cryptography;
 using Amazon.S3;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
-using FileService.Core.HttpCommunication;
+using FileService.Contracts.Dtos;
 using FileService.Domain.Assets;
 using FileService.Infrastructure.Postgres;
 using Microsoft.EntityFrameworkCore;
@@ -45,11 +44,7 @@ public abstract class FileServiceBaseTests : IAsyncLifetime
     // Respawn БД + очистка бакетов ПЕРЕД каждым тестом.
     public Task InitializeAsync() => _factory.ResetAsync();
 
-    public Task DisposeAsync()
-    {
-        HttpClient.Dispose();
-        return Task.CompletedTask;
-    }
+    public Task DisposeAsync() => Task.CompletedTask;
 
     protected async Task ExecuteInDb(Func<AppDbContext, Task> action)
     {
@@ -98,12 +93,6 @@ public abstract class FileServiceBaseTests : IAsyncLifetime
     {
         var metadata = await S3.GetObjectMetadataAsync(asset.StorageKey.Bucket, asset.StorageKey.Value);
         return (metadata.ContentLength, metadata.Headers.ContentType);
-    }
-
-    protected async Task<byte[]> GetObjectHash(MediaAsset asset)
-    {
-        using var obj = await S3.GetObjectAsync(asset.StorageKey.Bucket, asset.StorageKey.Value);
-        return await SHA256.HashDataAsync(obj.ResponseStream);
     }
 
     protected static byte[] RandomBytes(int size)

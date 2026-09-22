@@ -1,6 +1,7 @@
 ﻿using Core.Abstractions;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
+using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain;
 using FileService.Domain.Enums;
