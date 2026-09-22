@@ -2,6 +2,7 @@ using Core.Abstractions;
 using Core.Database;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
+using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
 using Microsoft.Extensions.Logging;

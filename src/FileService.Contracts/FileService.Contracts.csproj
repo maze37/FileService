@@ -1,9 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
+      <PackageId>Mazeland.FileService.Contracts</PackageId>
+      <Version>1.0.0</Version>
+      <Description>Comunnication for file service and other</Description>
+      <Authors>maze37</Authors>
+      <RepositoryUrl>https://github.com/maze37/FileService</RepositoryUrl>
+      <PackageTags>Communication</PackageTags>
+      <PackageLicenseExpression>MIT</PackageLicenseExpression>
+      <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
+  
+    <ItemGroup>
+      <PackageReference Include="Mazeland.Core" />
+      <PackageReference Include="Mazeland.SharedKernel" />
+      <PackageReference Include="Microsoft.Extensions.Http" />
+    </ItemGroup>
 
 </Project>

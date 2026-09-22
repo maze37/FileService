@@ -1,4 +1,4 @@
-namespace FileService.Contracts;
+namespace FileService.Contracts.Dtos;
 
 public record ObjectMetadata(
     string ETag,

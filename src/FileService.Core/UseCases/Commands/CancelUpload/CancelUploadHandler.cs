@@ -2,6 +2,7 @@
 using Core.Database;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
+using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using Microsoft.Extensions.Logging;
 using SharedKernel;

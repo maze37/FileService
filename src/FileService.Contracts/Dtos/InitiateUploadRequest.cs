@@ -1,4 +1,4 @@
-namespace FileService.Contracts;
+namespace FileService.Contracts.Dtos;
 
 public record InitiateUploadRequest(
     string FileName, 

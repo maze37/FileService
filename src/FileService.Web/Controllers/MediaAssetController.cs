@@ -1,5 +1,5 @@
 using Core.Abstractions;
-using FileService.Contracts;
+using FileService.Contracts.Dtos;
 using FileService.Core.UseCases.Commands.AbortMultipartUpload;
 using FileService.Core.UseCases.Commands.CancelUpload;
 using FileService.Core.UseCases.Commands.CompleteMultipartUpload;
@@ -12,10 +12,10 @@ using FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
 using Framework.ResponseExtensions;
 using Microsoft.AspNetCore.Mvc;
 using SharedKernel;
-using AbortMultipartUploadRequest = FileService.Contracts.AbortMultipartUploadRequest;
-using AbortMultipartUploadResponse = FileService.Contracts.AbortMultipartUploadResponse;
-using CompleteMultipartUploadRequest = FileService.Contracts.CompleteMultipartUploadRequest;
-using CompleteMultipartUploadResponse = FileService.Contracts.CompleteMultipartUploadResponse;
+using AbortMultipartUploadRequest = FileService.Contracts.Dtos.AbortMultipartUploadRequest;
+using AbortMultipartUploadResponse = FileService.Contracts.Dtos.AbortMultipartUploadResponse;
+using CompleteMultipartUploadRequest = FileService.Contracts.Dtos.CompleteMultipartUploadRequest;
+using CompleteMultipartUploadResponse = FileService.Contracts.Dtos.CompleteMultipartUploadResponse;
 
 namespace FileService.Web.Controllers;
 
@@ -86,7 +86,8 @@ public class MediaAssetController : ControllerBase
         Guid fileId,
         CancellationToken cancellationToken)
     {
-        var query = new GetFileQuery(fileId);
+        var request = new GetFileRequest(fileId);
+        var query = new GetFileQuery(request);
         var response = await _getFileHandler.HandleAsync(query, cancellationToken);
 
         if (response.IsFailure)

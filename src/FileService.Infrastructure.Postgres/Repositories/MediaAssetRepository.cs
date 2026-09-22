@@ -23,7 +23,7 @@ public class MediaAssetRepository : IMediaAssetRepository
 
     public async Task<Result<MediaAsset, Error>> GetByIdAsync(
         Guid mediaAssetId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var mediaAsset = await _context.MediaAssets
             .FirstOrDefaultAsync(ma => ma.Id == mediaAssetId, cancellationToken)
@@ -38,7 +38,7 @@ public class MediaAssetRepository : IMediaAssetRepository
     public async Task<IReadOnlyList<MediaAsset>> GetByOwnerAsync(
         string context,
         Guid entityId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         return await _context.MediaAssets
             .Where(a => a.MediaOwner.Context == context && a.MediaOwner.EntityId == entityId)

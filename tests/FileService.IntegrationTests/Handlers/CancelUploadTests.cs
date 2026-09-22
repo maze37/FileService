@@ -13,7 +13,7 @@ public class CancelUploadTests : FileServiceBaseTests
     {
         byte[] data = RandomBytes(KB);
         var init = await InitiateUpload(data);
-        await PutToUrlOrFail(init.UploadUrl, data);
+        await PutToUrl(init.UploadUrl, data);
 
         MediaAsset asset = await GetAsset(init.AssetId);
         Assert.True(await ObjectExists(asset));

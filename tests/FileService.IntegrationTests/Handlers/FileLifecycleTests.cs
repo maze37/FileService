@@ -1,6 +1,6 @@
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
-using FileService.Core.HttpCommunication;
+using FileService.Contracts.Dtos;
 using FileService.Domain.Assets;
 using FileService.Domain.Enums;
 using FileService.IntegrationTests.Infrastructure;

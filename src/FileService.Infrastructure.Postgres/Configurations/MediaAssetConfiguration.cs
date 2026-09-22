@@ -1,4 +1,5 @@
 using FileService.Contracts;
+using FileService.Contracts.Dtos;
 using FileService.Domain;
 using FileService.Domain.Assets;
 using FileService.Domain.ValueObjects;

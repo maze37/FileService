@@ -1,6 +1,7 @@
 using Core.Abstractions;
 using CSharpFunctionalExtensions;
 using FileService.Contracts;
+using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,7 @@ public class GetFileHandler : IQueryHandlerWithResult<GetFileQuery, GetFileRespo
         GetFileQuery query,
         CancellationToken cancellationToken)
     {
-        var assetResult = await _mediaAssetRepository.GetByIdAsync(query.MediaAssetId, cancellationToken);
+        var assetResult = await _mediaAssetRepository.GetByIdAsync(query.Request.MediaAssetId, cancellationToken);
         if (assetResult.IsFailure)
             return assetResult.Error;
 
