@@ -7,6 +7,7 @@ using FileService.Core.UseCases.Commands.CompleteUpload;
 using FileService.Core.UseCases.Commands.DeleteFile;
 using FileService.Core.UseCases.Commands.InitiateUpload;
 using FileService.Core.UseCases.Commands.StartMultipartUpload;
+using FileService.Core.UseCases.Queries.CheckMediaAssetExists;
 using FileService.Core.UseCases.Queries.GetFile;
 using FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
 using Framework.ResponseExtensions;
@@ -32,6 +33,7 @@ public class MediaAssetController : ControllerBase
     private readonly ICommandHandler<StartMultipartUploadCommand, StartMultipartUploadResponse> _startMultipartHandler;
     private readonly ICommandHandler<CompleteMultipartUploadCommand, CompleteMultipartUploadResponse> _completeMultipartHandler;
     private readonly ICommandHandler<AbortMultipartUploadCommand, AbortMultipartUploadResponse> _abortMultipartHandler;
+    private readonly IQueryHandlerWithResult<CheckMediaAssetExistsQuery, CheckMediaAssetExistsAndReadyResponse> _checkExistsHandler;
     
     public MediaAssetController(
         ICommandHandler<InitiateUploadCommand, InitiateUploadResponse> initiateUploadHandler,
@@ -42,7 +44,8 @@ public class MediaAssetController : ControllerBase
         ICommandHandler<DeleteFileCommand, DeleteFileResponse> deleteFileHandler,
         ICommandHandler<StartMultipartUploadCommand, StartMultipartUploadResponse> startMultipartHandler,
         ICommandHandler<CompleteMultipartUploadCommand, CompleteMultipartUploadResponse> completeMultipartHandler,
-        ICommandHandler<AbortMultipartUploadCommand, AbortMultipartUploadResponse> abortMultipartHandler)
+        ICommandHandler<AbortMultipartUploadCommand, AbortMultipartUploadResponse> abortMultipartHandler,
+        IQueryHandlerWithResult<CheckMediaAssetExistsQuery, CheckMediaAssetExistsAndReadyResponse> checkExistsHandler)
     {
         _initiateUploadHandler = initiateUploadHandler;
         _completeUploadHandler = completeUploadHandler;
@@ -53,6 +56,7 @@ public class MediaAssetController : ControllerBase
         _startMultipartHandler = startMultipartHandler;
         _completeMultipartHandler = completeMultipartHandler;
         _abortMultipartHandler = abortMultipartHandler;
+        _checkExistsHandler = checkExistsHandler;
     }
     
     [HttpPost("upload/initiate")]
@@ -177,6 +181,21 @@ public class MediaAssetController : ControllerBase
         var command = new AbortMultipartUploadCommand(request);
         
         var response = await _abortMultipartHandler.HandleAsync(command, cancellationToken);
+
+        if (response.IsFailure)
+            return response.Error.ToResponse();
+
+        return Ok(Envelope.Ok(response.Value));
+    }
+    
+    [HttpGet("{assetId:guid}/exists")]
+    public async Task<IActionResult> CheckExists(
+        [FromRoute] Guid assetId,
+        CancellationToken cancellationToken)
+    {
+        var query = new CheckMediaAssetExistsQuery(assetId);
+        
+        var response = await _checkExistsHandler.HandleAsync(query, cancellationToken);
 
         if (response.IsFailure)
             return response.Error.ToResponse();

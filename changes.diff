@@ -1,0 +1,293 @@
+diff --git a/src/FileService.Contracts/Dtos/CheckMediaAssetExistsResponse.cs b/src/FileService.Contracts/Dtos/CheckMediaAssetExistsResponse.cs
+index 09fedc2..1c51f5c 100644
+--- a/src/FileService.Contracts/Dtos/CheckMediaAssetExistsResponse.cs
++++ b/src/FileService.Contracts/Dtos/CheckMediaAssetExistsResponse.cs
+@@ -1,6 +1,3 @@
+ namespace FileService.Contracts.Dtos;
+ 
+-public class CheckMediaAssetExistsResponse
+-{
+-    
+-}
+\ No newline at end of file
++public record CheckMediaAssetExistsResponse(bool AssetExists);
+\ No newline at end of file
+diff --git a/src/FileService.Contracts/FileService.Contracts.csproj b/src/FileService.Contracts/FileService.Contracts.csproj
+index 5d400c5..7284d8d 100644
+--- a/src/FileService.Contracts/FileService.Contracts.csproj
++++ b/src/FileService.Contracts/FileService.Contracts.csproj
+@@ -2,7 +2,7 @@
+ 
+     <PropertyGroup>
+       <PackageId>Mazeland.FileService.Contracts</PackageId>
+-      <Version>1.0.0</Version>
++      <Version>1.0.1</Version>
+       <Description>Comunnication for file service and other</Description>
+       <Authors>maze37</Authors>
+       <RepositoryUrl>https://github.com/maze37/FileService</RepositoryUrl>
+diff --git a/src/FileService.Contracts/HttpCommunication/FileHttpClient.cs b/src/FileService.Contracts/HttpCommunication/FileHttpClient.cs
+index 319bd20..c0574c6 100644
+--- a/src/FileService.Contracts/HttpCommunication/FileHttpClient.cs
++++ b/src/FileService.Contracts/HttpCommunication/FileHttpClient.cs
+@@ -24,7 +24,7 @@ internal class FileHttpClient : IFileCommunicationService
+     {
+         try
+         {
+-            HttpResponseMessage response = await _httpClient.GetAsync($"api/files/{request.MediaAssetId}", cancellationToken);
++            var response = await _httpClient.GetAsync($"api/files/{request.MediaAssetId}", cancellationToken);
+             return await response.HandleResponseAsync<GetFileResponse>(cancellationToken);
+         }
+         catch (Exception ex)
+@@ -34,4 +34,22 @@ internal class FileHttpClient : IFileCommunicationService
+             return Error.Failure("server.internal", "Failed to request media assets info");
+         }
+     }
++
++    public async Task<Result<CheckMediaAssetExistsResponse, Error>> CheckMediaAssetExists(
++        Guid assetId,
++        CancellationToken cancellationToken)
++    {
++        try
++        {
++            var response = await _httpClient.GetAsync($"api/files/{assetId}/exists", cancellationToken);
++
++            return await response.HandleResponseAsync<CheckMediaAssetExistsResponse>(cancellationToken);
++        }
++        catch (Exception ex)
++        {
++            _logger.LogError(ex, "Error checking media asset exists for {MediaAssetId}", assetId);
++
++            return Error.Failure("server.internal", "Failed to check media asset exists");
++        }
++    }
+ }
+\ No newline at end of file
+diff --git a/src/FileService.Contracts/IFileCommunicationService.cs b/src/FileService.Contracts/IFileCommunicationService.cs
+index dfc4cf6..a7625cf 100644
+--- a/src/FileService.Contracts/IFileCommunicationService.cs
++++ b/src/FileService.Contracts/IFileCommunicationService.cs
+@@ -9,4 +9,8 @@ public interface IFileCommunicationService
+     Task<Result<GetFileResponse, Error>> GetMediaAsset(
+         GetFileRequest request,
+         CancellationToken cancellationToken);
++
++    Task<Result<CheckMediaAssetExistsResponse, Error>> CheckMediaAssetExists(
++        Guid assetId,
++        CancellationToken cancellationToken);
+ }
+\ No newline at end of file
+diff --git a/src/FileService.Core/Abstractions/IReadDbContext.cs b/src/FileService.Core/Abstractions/IReadDbContext.cs
+index bf33685..92d55a5 100644
+--- a/src/FileService.Core/Abstractions/IReadDbContext.cs
++++ b/src/FileService.Core/Abstractions/IReadDbContext.cs
+@@ -1,6 +1,8 @@
++using FileService.Domain.Assets;
++
+ namespace FileService.Core.Abstractions;
+ 
+-public class IReadDbContext
++public interface IReadDbContext
+ {
+-    
++    IQueryable<MediaAsset> MediaAssetsRead { get; }
+ }
+\ No newline at end of file
+diff --git a/src/FileService.Core/FileService.Core.csproj b/src/FileService.Core/FileService.Core.csproj
+index 0abf353..b403ffb 100644
+--- a/src/FileService.Core/FileService.Core.csproj
++++ b/src/FileService.Core/FileService.Core.csproj
+@@ -5,5 +5,6 @@
+   </ItemGroup>
+   <ItemGroup>
+     <PackageReference Include="mazeland.core" />
++    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+   </ItemGroup>
+ </Project>
+diff --git a/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsHandler.cs b/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsHandler.cs
+index 6c4bf57..ace7789 100644
+--- a/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsHandler.cs
++++ b/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsHandler.cs
+@@ -1,30 +1,28 @@
+ using Core.Abstractions;
+-using Core.Database;
++using CSharpFunctionalExtensions;
++using FileService.Contracts.Dtos;
+ using FileService.Core.Abstractions;
+-using Microsoft.Extensions.Logging;
++using SharedKernel;
++using Microsoft.EntityFrameworkCore;
+ 
+-namespace FileService.Core.UseCases.Commands.CheckMediaAssetExists;
++namespace FileService.Core.UseCases.Queries.CheckMediaAssetExists;
+ 
+-public class CheckMediaAssetExistsHandler : ICommandHandler<CheckMediaAssetExistsCommand, CheckMediaAssetExistsResponse>
++public class CheckMediaAssetExistsHandler : IQueryHandlerWithResult<CheckMediaAssetExistsQuery, CheckMediaAssetExistsResponse>
+ {
+-    private readonly ITransactionManager _transactionManager;
+-    private readonly ILogger<CheckMediaAssetExistsHandler> _logger;
+-    private readonly IMediaAssetRepository _mediaAssetRepository;
+-    private readonly IS3Provider _s3Provider;
+-    
+-    public CheckMediaAssetExistsHandler(
+-        ITransactionManager transactionManager,
+-        ILogger<CheckMediaAssetExistsHandler> logger,
+-        IMediaAssetRepository mediaAssetRepository,
+-        IS3Provider s3Provider)
++    private readonly IReadDbContext _readDbContext;
++
++    public CheckMediaAssetExistsHandler(IReadDbContext readDbContext)
+     {
+-        _transactionManager = transactionManager;
+-        _logger = logger;
+-        _mediaAssetRepository = mediaAssetRepository;
+-        _s3Provider = s3Provider;
++        _readDbContext = readDbContext;
+     }
+-    
+-    public async Task<Result
+-}
+ 
+-public record CheckMediaAssetExistsResponse(Guid AssetId);
+\ No newline at end of file
++    public async Task<Result<CheckMediaAssetExistsResponse, Error>> HandleAsync(
++        CheckMediaAssetExistsQuery query,
++        CancellationToken cancellationToken)
++    {
++        bool exists = await _readDbContext.MediaAssetsRead
++            .AnyAsync(a => a.Id == query.AssetId, cancellationToken);
++
++        return new CheckMediaAssetExistsResponse(exists);
++    }
++}
+\ No newline at end of file
+diff --git a/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsQuery.cs b/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsQuery.cs
+index dae582e..652aed1 100644
+--- a/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsQuery.cs
++++ b/src/FileService.Core/UseCases/Queries/CheckMediaAssetExists/CheckMediaAssetExistsQuery.cs
+@@ -1,5 +1,6 @@
+ using Core.Abstractions;
++using FileService.Contracts.Dtos;
+ 
+ namespace FileService.Core.UseCases.Queries.CheckMediaAssetExists;
+ 
+-public record CheckMediaAssetExistsCommand(Guid AssetId) : IQuery<CheckMediaAssetExistsResponse>
+\ No newline at end of file
++public record CheckMediaAssetExistsQuery(Guid AssetId) : IQuery<CheckMediaAssetExistsResponse>;
+\ No newline at end of file
+diff --git a/src/FileService.Infrastructure.Postgres/AppDbContext.cs b/src/FileService.Infrastructure.Postgres/AppDbContext.cs
+index 7533a8d..0e5d4ce 100644
+--- a/src/FileService.Infrastructure.Postgres/AppDbContext.cs
++++ b/src/FileService.Infrastructure.Postgres/AppDbContext.cs
+@@ -1,14 +1,16 @@
+-using FileService.Domain;
++using FileService.Core.Abstractions;
+ using FileService.Domain.Assets;
+ using Microsoft.EntityFrameworkCore;
+ 
+ namespace FileService.Infrastructure.Postgres;
+ 
+-public class AppDbContext : DbContext
++public class AppDbContext : DbContext, IReadDbContext
+ {
+     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+     
+     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
++    
++    public IQueryable<MediaAsset> MediaAssetsRead => Set<MediaAsset>().AsQueryable().AsNoTracking();
+ 
+     protected override void OnModelCreating(ModelBuilder modelBuilder)
+     {
+diff --git a/src/FileService.Infrastructure.Postgres/Inject.cs b/src/FileService.Infrastructure.Postgres/Inject.cs
+index 14458d1..181e54e 100644
+--- a/src/FileService.Infrastructure.Postgres/Inject.cs
++++ b/src/FileService.Infrastructure.Postgres/Inject.cs
+@@ -27,6 +27,8 @@ public static class Inject
+             options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+         });
+         
++        services.AddScoped<IReadDbContext>(sp => sp.GetRequiredService<AppDbContext>());
++        
+         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
+         services.AddScoped<ITransactionManager, TransactionManager>();
+         services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
+diff --git a/src/FileService.Web/Controllers/MediaAssetController.cs b/src/FileService.Web/Controllers/MediaAssetController.cs
+index f4174f7..da1454c 100644
+--- a/src/FileService.Web/Controllers/MediaAssetController.cs
++++ b/src/FileService.Web/Controllers/MediaAssetController.cs
+@@ -7,6 +7,7 @@ using FileService.Core.UseCases.Commands.CompleteUpload;
+ using FileService.Core.UseCases.Commands.DeleteFile;
+ using FileService.Core.UseCases.Commands.InitiateUpload;
+ using FileService.Core.UseCases.Commands.StartMultipartUpload;
++using FileService.Core.UseCases.Queries.CheckMediaAssetExists;
+ using FileService.Core.UseCases.Queries.GetFile;
+ using FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
+ using Framework.ResponseExtensions;
+@@ -32,6 +33,7 @@ public class MediaAssetController : ControllerBase
+     private readonly ICommandHandler<StartMultipartUploadCommand, StartMultipartUploadResponse> _startMultipartHandler;
+     private readonly ICommandHandler<CompleteMultipartUploadCommand, CompleteMultipartUploadResponse> _completeMultipartHandler;
+     private readonly ICommandHandler<AbortMultipartUploadCommand, AbortMultipartUploadResponse> _abortMultipartHandler;
++    private readonly IQueryHandlerWithResult<CheckMediaAssetExistsQuery, CheckMediaAssetExistsResponse> _checkExistsHandler;
+     
+     public MediaAssetController(
+         ICommandHandler<InitiateUploadCommand, InitiateUploadResponse> initiateUploadHandler,
+@@ -42,7 +44,8 @@ public class MediaAssetController : ControllerBase
+         ICommandHandler<DeleteFileCommand, DeleteFileResponse> deleteFileHandler,
+         ICommandHandler<StartMultipartUploadCommand, StartMultipartUploadResponse> startMultipartHandler,
+         ICommandHandler<CompleteMultipartUploadCommand, CompleteMultipartUploadResponse> completeMultipartHandler,
+-        ICommandHandler<AbortMultipartUploadCommand, AbortMultipartUploadResponse> abortMultipartHandler)
++        ICommandHandler<AbortMultipartUploadCommand, AbortMultipartUploadResponse> abortMultipartHandler,
++        IQueryHandlerWithResult<CheckMediaAssetExistsQuery, CheckMediaAssetExistsResponse> checkExistsHandler)
+     {
+         _initiateUploadHandler = initiateUploadHandler;
+         _completeUploadHandler = completeUploadHandler;
+@@ -53,6 +56,7 @@ public class MediaAssetController : ControllerBase
+         _startMultipartHandler = startMultipartHandler;
+         _completeMultipartHandler = completeMultipartHandler;
+         _abortMultipartHandler = abortMultipartHandler;
++        _checkExistsHandler = checkExistsHandler;
+     }
+     
+     [HttpPost("upload/initiate")]
+@@ -183,4 +187,19 @@ public class MediaAssetController : ControllerBase
+ 
+         return Ok(Envelope.Ok(response.Value));
+     }
++    
++    [HttpGet("{assetId:guid}/exists")]
++    public async Task<IActionResult> CheckExists(
++        [FromRoute] Guid assetId,
++        CancellationToken cancellationToken)
++    {
++        var query = new CheckMediaAssetExistsQuery(assetId);
++        
++        var response = await _checkExistsHandler.HandleAsync(query, cancellationToken);
++
++        if (response.IsFailure)
++            return response.Error.ToResponse();
++
++        return Ok(Envelope.Ok(response.Value));
++    }
+ }
+\ No newline at end of file
+diff --git a/src/FileService.Web/Program.cs b/src/FileService.Web/Program.cs
+index 0e0c516..05b6fbe 100644
+--- a/src/FileService.Web/Program.cs
++++ b/src/FileService.Web/Program.cs
+@@ -22,10 +22,16 @@ try
+ 
+     await app.RunAsync().ConfigureAwait(false);
+ }
++// catch (Exception ex)
++// {
++//     Log.Fatal(ex, "Application terminated unexpectedly");
++//     throw;
++// }
+ catch (Exception ex)
+ {
++    Console.WriteLine("=== FATAL ERROR ===");
++    Console.WriteLine(ex);
+     Log.Fatal(ex, "Application terminated unexpectedly");
+-    throw;
+ }
+ finally
+ {

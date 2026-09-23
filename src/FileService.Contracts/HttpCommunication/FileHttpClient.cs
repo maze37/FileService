@@ -24,7 +24,7 @@ internal class FileHttpClient : IFileCommunicationService
     {
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync($"api/files/{request.MediaAssetId}", cancellationToken);
+            var response = await _httpClient.GetAsync($"api/files/{request.MediaAssetId}", cancellationToken);
             return await response.HandleResponseAsync<GetFileResponse>(cancellationToken);
         }
         catch (Exception ex)
@@ -32,6 +32,24 @@ internal class FileHttpClient : IFileCommunicationService
             _logger.LogError(ex, "Error getting media assets for {MediaAssetIds}", request.MediaAssetId);
             
             return Error.Failure("server.internal", "Failed to request media assets info");
+        }
+    }
+
+    public async Task<Result<CheckMediaAssetExistsAndReadyResponse, Error>> CheckMediaAssetExistsAndReady(
+        Guid assetId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/files/{assetId}/exists", cancellationToken);
+
+            return await response.HandleResponseAsync<CheckMediaAssetExistsAndReadyResponse>(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking media asset exists for {MediaAssetId}", assetId);
+
+            return Error.Failure("server.internal", "Failed to check media asset exists");
         }
     }
 }
