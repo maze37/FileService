@@ -68,8 +68,15 @@ services:
       - postgres
       - seq
       - minio
+    networks:
+      - default
+      - shared-network
 
 volumes:
   postgres-data:
     name: fileservice-postgres-data
   minio-data:
+    
+networks:
+  shared-network:
+    external: true

@@ -2,7 +2,7 @@
 
     <PropertyGroup>
       <PackageId>Mazeland.FileService.Contracts</PackageId>
-      <Version>1.0.0</Version>
+      <Version>1.0.2</Version>
       <Description>Comunnication for file service and other</Description>
       <Authors>maze37</Authors>
       <RepositoryUrl>https://github.com/maze37/FileService</RepositoryUrl>

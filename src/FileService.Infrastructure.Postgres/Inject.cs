@@ -27,6 +27,8 @@ public static class Inject
             options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
         
+        services.AddScoped<IReadDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
