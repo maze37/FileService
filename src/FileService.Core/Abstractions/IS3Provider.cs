@@ -1,5 +1,4 @@
 ﻿using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Domain.ValueObjects;
 using SharedKernel;

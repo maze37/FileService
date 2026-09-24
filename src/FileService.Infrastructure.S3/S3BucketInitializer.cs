@@ -9,12 +9,12 @@ namespace FileService.Infrastructure.S3;
 public class S3BucketInitializer : IHostedService
 {
     private readonly IS3Provider _s3Provider;
-    private readonly S3Options _options;
+    private readonly FileStorageOptions _options;
     private readonly ILogger<S3BucketInitializer> _logger;
 
     public S3BucketInitializer(
         IS3Provider s3Provider,
-        IOptions<S3Options> options,
+        IOptions<FileStorageOptions> options,
         ILogger<S3BucketInitializer> logger)
     {
         _s3Provider = s3Provider;

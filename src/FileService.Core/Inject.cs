@@ -1,5 +1,7 @@
-using Core.Abstractions;
+﻿using Core.Abstractions;
 using System.Reflection;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FileService.Core;
@@ -7,7 +9,8 @@ namespace FileService.Core;
 public static class Inject
 {
     public static IServiceCollection AddCore(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         var assembly = Assembly.GetExecutingAssembly();
 
@@ -34,6 +37,20 @@ public static class Inject
                 .AssignableTo(typeof(IQueryHandlerWithResult<,>)))
             .AsImplementedInterfaces()
             .WithTransientLifetime());
+
+        services.AddStackExchangeRedisCache(setup =>
+        {
+            setup.Configuration = configuration.GetConnectionString("Redis");
+        });
+
+        services.AddHybridCache(options =>
+        {
+            options.DefaultEntryOptions = new HybridCacheEntryOptions()
+            {
+                LocalCacheExpiration = TimeSpan.FromMinutes(5),
+                Expiration = TimeSpan.FromMinutes(30)
+            };
+        });
         
         return services;
     }

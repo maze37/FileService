@@ -1,10 +1,10 @@
 ﻿using Core.Abstractions;
 using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain;
 using FileService.Domain.Enums;
+using Microsoft.Extensions.Caching.Hybrid;
 using SharedKernel;
 
 namespace FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
@@ -12,11 +12,14 @@ namespace FileService.Core.UseCases.Queries.GetFilesByTargetEntity;
 public class GetFilesByTargetEntityHandler : IQueryHandlerWithResult<GetFilesByTargetEntityQuery, GetFilesByTargetEntityResponse>
 {
     private readonly IMediaAssetRepository _mediaAssetRepository;
+    private readonly HybridCache _cache;
 
     public GetFilesByTargetEntityHandler(
-        IMediaAssetRepository mediaAssetRepository)
+        IMediaAssetRepository mediaAssetRepository,
+        HybridCache cache)
     {
         _mediaAssetRepository = mediaAssetRepository;
+        _cache = cache;
     }
 
     public async Task<Result<GetFilesByTargetEntityResponse, Error>> HandleAsync(

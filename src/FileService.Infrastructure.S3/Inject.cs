@@ -12,27 +12,27 @@ public static class Inject
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<S3Options>(configuration.GetSection(nameof(S3Options)));
+        services.Configure<FileStorageOptions>(configuration.GetSection(nameof(FileStorageOptions)));
 
         // Внутренний клиент - для всех операций из backend
         services.AddSingleton<IAmazonS3>(sp =>
         {
-            S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+            FileStorageOptions fileStorageOptions = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
 
             var config = new AmazonS3Config
             {
-                ServiceURL = s3Options.Endpoint, 
+                ServiceURL = fileStorageOptions.Endpoint, 
                 ForcePathStyle = true,
-                UseHttp = !s3Options.WithSsl
+                UseHttp = !fileStorageOptions.WithSsl
             };
 
-            return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
+            return new AmazonS3Client(fileStorageOptions.AccessKey, fileStorageOptions.SecretKey, config);
         });
         
         // Presign-клиент - подписывает URL под внешний хост, который увидит браузер
         services.AddKeyedSingleton<IAmazonS3>(S3ClientKeys.PRESIGN, (sp, _) =>
         {
-            var s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+            var s3Options = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
             var config = new AmazonS3Config
             {
                 ServiceURL = s3Options.ExternalEndpoint,

@@ -43,8 +43,8 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:FileServiceDb"] = _dbContainer.GetConnectionString(),
-                ["S3Options:AccessKey"] = "minioadmin",
-                ["S3Options:SecretKey"] = "minioadmin"
+                ["FileStorageOptions:AccessKey"] = "minioadmin",
+                ["FileStorageOptions:SecretKey"] = "minioadmin"
             });
         });
 
@@ -61,7 +61,7 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
             services.RemoveAll<IAmazonS3>();
             services.AddSingleton<IAmazonS3>(sp =>
             {
-                S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+                FileStorageOptions fileStorageOptions = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
                 ushort minioPort = _minioContainer.GetMappedPublicPort(9000);
 
                 var config = new AmazonS3Config
@@ -71,13 +71,13 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
                     ForcePathStyle = true,
                 };
 
-                return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
+                return new AmazonS3Client(fileStorageOptions.AccessKey, fileStorageOptions.SecretKey, config);
             });
 
             services.RemoveAllKeyed<IAmazonS3>(S3ClientKeys.PRESIGN);
             services.AddKeyedSingleton<IAmazonS3>(S3ClientKeys.PRESIGN, (sp, _) =>
             {
-                S3Options s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+                FileStorageOptions fileStorageOptions = sp.GetRequiredService<IOptions<FileStorageOptions>>().Value;
                 ushort minioPort = _minioContainer.GetMappedPublicPort(9000);
 
                 var config = new AmazonS3Config
@@ -87,7 +87,7 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
                     ForcePathStyle = true,
                 };
 
-                return new AmazonS3Client(s3Options.AccessKey, s3Options.SecretKey, config);
+                return new AmazonS3Client(fileStorageOptions.AccessKey, fileStorageOptions.SecretKey, config);
             });
 
             services.AddHostedService<S3BucketInitializer>();
@@ -155,7 +155,7 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
     public async Task ResetStorageAsync()
     {
         var s3 = Services.GetRequiredService<IAmazonS3>();
-        var options = Services.GetRequiredService<IOptions<S3Options>>().Value;
+        var options = Services.GetRequiredService<IOptions<FileStorageOptions>>().Value;
  
         foreach (string bucket in options.RequiredBuckets)
         {

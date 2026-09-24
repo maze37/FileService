@@ -1,10 +1,10 @@
 ﻿using Core.Abstractions;
 using Core.Database;
 using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using SharedKernel;
 
@@ -13,20 +13,23 @@ namespace FileService.Core.UseCases.Commands.DeleteFile;
 public class DeleteFileHandler : ICommandHandler<DeleteFileCommand, DeleteFileResponse>
 {
     private readonly ITransactionManager _transactionManager;
-    private readonly ILogger<DeleteFileHandler> _logger;
     private readonly IMediaAssetRepository _mediaAssetRepository;
     private readonly IS3Provider _s3Provider;
+    private readonly ILogger<DeleteFileHandler> _logger;
+    private readonly HybridCache _cache;
 
     public DeleteFileHandler(
         ITransactionManager transactionManager,
-        ILogger<DeleteFileHandler> logger,
         IMediaAssetRepository mediaAssetRepository,
-        IS3Provider s3Provider)
+        IS3Provider s3Provider,
+        ILogger<DeleteFileHandler> logger,
+        HybridCache cache)
     {
         _transactionManager = transactionManager;
-        _logger = logger;
         _mediaAssetRepository = mediaAssetRepository;
         _s3Provider = s3Provider;
+        _logger = logger;
+        _cache = cache;
     }
 
     public async Task<Result<DeleteFileResponse, Error>> HandleAsync(
@@ -62,6 +65,17 @@ public class DeleteFileHandler : ICommandHandler<DeleteFileCommand, DeleteFileRe
         var commitResult = transactionScope.Commit();
         if (commitResult.IsFailure)
             return commitResult.Error;
+        
+        try
+        {
+            _logger.LogInformation("Удаляю из кэша ассет {AssetId}", asset.Id);
+            
+            await _cache.RemoveAsync(asset.StorageKey.Value, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось сбросить кэш ссылки для файла {AssetId}", asset.Id);
+        }
         
         var deleteResult = await _s3Provider.DeleteObjectAsync(
             asset.StorageKey,

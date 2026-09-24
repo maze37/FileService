@@ -23,6 +23,7 @@ services:
       ACCEPT_EULA: "Y"
       SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
     ports:
+      - "5341:5341"
       - "8082:80"
 
   minio:
@@ -59,7 +60,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8003
       ConnectionStrings__FileServiceDb: "Host=postgres;Port=5432;Database=file_service_db;Username=postgres;Password=1234"
-      Serilog__WriteTo__1__Args__serverUrl: "http://seq:80"
+      Serilog__WriteTo__1__Args__serverUrl: "http://seq:5341"
       S3Options__Endpoint: "http://minio:9000"
       S3Options__PublicEndpoint: "http://localhost:9000"
       S3Options__AccessKey: "minioadmin"
@@ -71,6 +72,13 @@ services:
     networks:
       - default
       - shared-network
+    
+  redis:
+    container_name: redis-fs
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: always
 
 volumes:
   postgres-data:

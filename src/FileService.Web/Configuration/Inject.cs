@@ -12,7 +12,7 @@ public static class Inject
         IConfiguration configuration)
     {
         services
-            .AddCore()
+            .AddCore(configuration)
             .AddS3(configuration)
             .AddPostgres(configuration)
             .AddSwaggerGen()
