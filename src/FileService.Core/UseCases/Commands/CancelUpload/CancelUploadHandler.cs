@@ -1,7 +1,5 @@
 ﻿using Core.Abstractions;
-using Core.Database;
 using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using Microsoft.Extensions.Logging;
@@ -38,21 +36,15 @@ public class CancelUploadHandler : ICommandHandler<CancelUploadCommand, CancelUp
 
         var asset = assetResult.Value;
         
-        var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
-        if (transactionResult.IsFailure)
-            return transactionResult.Error;
-
-        using var transactionScope = transactionResult.Value;
+        var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+        if (transaction.IsFailure)
+            return transaction.Error;
         
         var cancelResult = asset.MarkAsCancelled();
         if (cancelResult.IsFailure)
             return cancelResult.Error;
         
-        var saveResult = await _transactionManager.SaveChangesAsync(cancellationToken);
-        if (saveResult.IsFailure)
-            return saveResult.Error;
-
-        var commitResult = transactionScope.Commit();
+        var commitResult = await _transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
             return commitResult.Error;
         

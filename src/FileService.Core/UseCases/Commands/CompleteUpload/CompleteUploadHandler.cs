@@ -1,10 +1,9 @@
-using Core.Abstractions;
-using Core.Database;
+﻿using Core.Abstractions;
 using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
+using IntegrationEvents.Files.Events;
 using Microsoft.Extensions.Logging;
 using SharedKernel;
 
@@ -16,17 +15,20 @@ public class CompleteUploadHandler : ICommandHandler<CompleteUploadCommand, Comp
     private readonly ILogger<CompleteUploadHandler> _logger;
     private readonly IMediaAssetRepository _mediaAssetRepository;
     private readonly IS3Provider _s3Provider;
+    private readonly IOutboxService _outbox;
 
     public CompleteUploadHandler(
         ITransactionManager transactionManager,
         ILogger<CompleteUploadHandler> logger,
         IMediaAssetRepository mediaAssetRepository,
-        IS3Provider s3Provider)
+        IS3Provider s3Provider,
+        IOutboxService outbox)
     {
         _transactionManager = transactionManager;
         _logger = logger;
         _mediaAssetRepository = mediaAssetRepository;
         _s3Provider = s3Provider;
+        _outbox = outbox;
     }
 
     public async Task<Result<CompleteUploadResponse, Error>> HandleAsync(
@@ -57,11 +59,9 @@ public class CompleteUploadHandler : ICommandHandler<CompleteUploadCommand, Comp
             return metadataResult.Error;
         }
 
-        var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
-        if (transactionResult.IsFailure)
-            return transactionResult.Error;
-
-        using var transactionScope = transactionResult.Value;
+        var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+        if (transaction.IsFailure)
+            return transaction.Error;
 
         var completeResult = asset.MarkUploaded();
         
@@ -71,11 +71,14 @@ public class CompleteUploadHandler : ICommandHandler<CompleteUploadCommand, Comp
             return completeResult.Error;
         }
 
-        var saveResult = await _transactionManager.SaveChangesAsync(cancellationToken);
-        if (saveResult.IsFailure)
-            return saveResult.Error;
+        await _outbox.PublishAsync(new AssetReady(
+            AssetId: asset.Id,
+            EntityId: asset.MediaOwner.EntityId,
+            EntityType: asset.MediaOwner.Context,
+            AssetType: asset.AssetType.ToString(),
+            OccurredAt: DateTimeOffset.UtcNow));
 
-        var commitResult = transactionScope.Commit();
+        var commitResult = await _transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
             return commitResult.Error;
 

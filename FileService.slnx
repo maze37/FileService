@@ -16,6 +16,9 @@
     <Project Path="src/FileService.Web/FileService.Web.csproj" />
     <Project Path="src\FileService.Infrastructure.Postgres\FileService.Infrastructure.Postgres.csproj" />
   </Folder>
+  <Folder Name="/src/Shared.Messaging/">
+    <Project Path="src\FileService.Shared.Messaging\FileService.Shared.Messaging.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FileService.IntegrationTests/FileService.IntegrationTests.csproj" />
   </Folder>

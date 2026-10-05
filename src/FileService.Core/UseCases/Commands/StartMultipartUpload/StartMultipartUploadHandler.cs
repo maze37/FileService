@@ -1,7 +1,5 @@
 ﻿using Core.Abstractions;
-using Core.Database;
 using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain;
@@ -104,11 +102,9 @@ public class StartMultipartUploadHandler : ICommandHandler<StartMultipartUploadC
         if (chunkUploadUrlsResult.IsFailure)
             return chunkUploadUrlsResult.Error;
         
-        var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
-        if (transactionResult.IsFailure)
-            return transactionResult.Error;
-
-        using var transactionScope = transactionResult.Value;
+        var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+        if (transaction.IsFailure)
+            return transaction.Error;
         
         var attachResult = mediaAsset.AttachUploadId(startUploadResult.Value);
         if (attachResult.IsFailure)
@@ -116,11 +112,7 @@ public class StartMultipartUploadHandler : ICommandHandler<StartMultipartUploadC
         
         _mediaAssetRepository.Add(mediaAsset);
         
-        var saveResult = await _transactionManager.SaveChangesAsync(cancellationToken);
-        if (saveResult.IsFailure)
-            return saveResult.Error;
-
-        var commitResult = transactionScope.Commit();
+        var commitResult = await _transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
             return commitResult.Error;
 

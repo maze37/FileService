@@ -1,12 +1,13 @@
 using FileService.Core.Abstractions;
 using FileService.Domain.Assets;
 using Microsoft.EntityFrameworkCore;
+using Wolverine.EntityFrameworkCore;
 
 namespace FileService.Infrastructure.Postgres;
 
-public class AppDbContext : DbContext, IReadDbContext
+public class FileServiceDbContext : DbContext, IReadDbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    public FileServiceDbContext(DbContextOptions<FileServiceDbContext> options) : base(options) { }
     
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     
@@ -15,7 +16,9 @@ public class AppDbContext : DbContext, IReadDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("files");
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(FileServiceDbContext).Assembly);
+
+        modelBuilder.MapWolverineEnvelopeStorage("files");
 
         base.OnModelCreating(modelBuilder);
     }

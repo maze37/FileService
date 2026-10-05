@@ -2,7 +2,7 @@
 using FileService.Contracts.Dtos;
 using SharedKernel;
 
-namespace FileService.Contracts.HttpCommunication;
+namespace FileService.Contracts;
 
 public interface IFileCommunicationService
 { 

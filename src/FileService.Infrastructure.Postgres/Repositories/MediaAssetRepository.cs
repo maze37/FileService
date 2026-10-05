@@ -9,9 +9,9 @@ namespace FileService.Infrastructure.Postgres.Repositories;
 
 public class MediaAssetRepository : IMediaAssetRepository
 {
-    private readonly AppDbContext _context;
+    private readonly FileServiceDbContext _context;
 
-    public MediaAssetRepository(AppDbContext context)
+    public MediaAssetRepository(FileServiceDbContext context)
     {
         _context = context;
     }

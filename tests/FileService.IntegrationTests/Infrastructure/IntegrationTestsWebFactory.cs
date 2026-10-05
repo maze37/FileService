@@ -50,10 +50,10 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
 
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<AppDbContext>();
+            services.RemoveAll<FileServiceDbContext>();
             services.RemoveAll<DbContextOptions>();
 
-            services.AddDbContext<AppDbContext>((sp, options) =>
+            services.AddDbContext<FileServiceDbContext>((sp, options) =>
             {
                 options.UseNpgsql(_dbContainer.GetConnectionString());
             });
@@ -102,7 +102,7 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
         await _minioContainer.StartAsync();
 
         await using var scope = Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FileServiceDbContext>();
 
         await dbContext.Database.MigrateAsync();
         

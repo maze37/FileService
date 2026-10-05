@@ -9,6 +9,7 @@ public sealed record MediaOwner
     
     public static readonly HashSet<string> AllowedContexts =
     [
+        "location",
         "lesson",
         "module",
         "user",
