@@ -149,15 +149,47 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
     }
     
     /// <summary>
-    /// Полный сброс состояния между тестами: БД и содержимое бакетов.
+    /// Дожидается доставки outbox, затем очищает очередь, бизнес-данные и бакеты.
     /// </summary>
     public async Task ResetAsync()
     {
+        await WaitForOutboxDeliveryAsync();
         await Broker.PurgeAsync();
         await ResetDatabaseAsync();
         await ResetStorageAsync();
     }
  
+    private async Task WaitForOutboxDeliveryAsync()
+    {
+        // Таблицами Wolverine управляет сам Wolverine: не удаляем ожидающие отправки сообщения.
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FileServiceDbContext>();
+        int pending = -1;
+
+        try
+        {
+            do
+            {
+                pending = await db.Database.SqlQuery<int>($"""
+                    SELECT count(*)::int AS "Value"
+                    FROM files.wolverine_outgoing_envelopes
+                    """).SingleAsync(timeout.Token);
+
+                if (pending == 0)
+                    return;
+
+                await Task.Delay(100, timeout.Token);
+            } while (true);
+        }
+        catch (OperationCanceledException ex) when (timeout.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Outbox delivery did not complete within 30 seconds. Last pending count: {pending}. " +
+                "Test state was not reset; check RabbitMQ and Wolverine logs.", ex);
+        }
+    }
+
     public async Task ResetDatabaseAsync()
     {
         await _respawner.ResetAsync(_dbConnection!);

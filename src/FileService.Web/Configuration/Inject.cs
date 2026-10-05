@@ -26,7 +26,7 @@ public static class Inject
 
         services.AddHealthChecks()
             .AddCheck<S3HealthCheck>("s3-storage")
-            .AddNpgSql(configuration.GetConnectionString("FileServiceDb")!, name: "postgres");
+            .AddNpgSql(configuration.GetConnectionString("Database")!, name: "postgres");
         
         return services;
     }
