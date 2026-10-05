@@ -38,6 +38,8 @@ public class MultipartUploadFileTests : FileServiceBaseTests
         
         // Assert
         Assert.True(result.IsSuccess);
+        var message = await _factory.Broker.WaitForAsync("asset.ready.user", startMultipartResponse.MediaAssetId);
+        Assert.Equal(Guid.Parse("9c1c4802-da4b-4959-8563-175102a3217b"), message.GetProperty("entityId").GetGuid());
         
         await ExecuteInDb(async db =>
         {

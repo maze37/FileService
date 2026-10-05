@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,8 @@ namespace FileService.IntegrationTests.Infrastructure;
 
 public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    public RabbitMqTestBroker Broker { get; } = new();
+
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder("postgres:18-alpine")
         .WithDatabase("file_service_db")
         .WithUsername("postgres")
@@ -38,11 +41,14 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
     
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("ConnectionStrings:Database", _dbContainer.GetConnectionString());
+        builder.UseSetting("ConnectionStrings:RabbitMq", Broker.ConnectionString);
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:FileServiceDb"] = _dbContainer.GetConnectionString(),
+                ["ConnectionStrings:Database"] = _dbContainer.GetConnectionString(),
+                ["ConnectionStrings:RabbitMq"] = Broker.ConnectionString,
                 ["FileStorageOptions:AccessKey"] = "minioadmin",
                 ["FileStorageOptions:SecretKey"] = "minioadmin"
             });
@@ -50,8 +56,12 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
 
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<IDistributedCache>();
+            services.AddDistributedMemoryCache();
+
             services.RemoveAll<FileServiceDbContext>();
             services.RemoveAll<DbContextOptions>();
+            services.RemoveAll<DbContextOptions<FileServiceDbContext>>();
 
             services.AddDbContext<FileServiceDbContext>((sp, options) =>
             {
@@ -100,6 +110,7 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
     {
         await _dbContainer.StartAsync();
         await _minioContainer.StartAsync();
+        await Broker.StartAsync();
 
         await using var scope = Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<FileServiceDbContext>();
@@ -112,16 +123,17 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
         await InitializeRespawner();
     }
 
-    public async Task DisposeAsync()
+    public new async Task DisposeAsync()
     {
+        await base.DisposeAsync();
+        await Broker.DisposeAsync();
+        if (_dbConnection is not null)
+            await _dbConnection.DisposeAsync();
         await _dbContainer.StopAsync();
         await _dbContainer.DisposeAsync();
         
         await _minioContainer.StopAsync();
         await _minioContainer.DisposeAsync();
-        
-        await _dbConnection.CloseAsync();
-        await _dbConnection.DisposeAsync();
     }
     
     private async Task InitializeRespawner()
@@ -131,7 +143,8 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
             new RespawnerOptions
             { 
                 DbAdapter = DbAdapter.Postgres, 
-                SchemasToInclude = ["files"]
+                SchemasToInclude = ["files"],
+                TablesToInclude = [new Respawn.Graph.Table("files", "media_assets")]
             });
     }
     
@@ -140,6 +153,7 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
     /// </summary>
     public async Task ResetAsync()
     {
+        await Broker.PurgeAsync();
         await ResetDatabaseAsync();
         await ResetStorageAsync();
     }
