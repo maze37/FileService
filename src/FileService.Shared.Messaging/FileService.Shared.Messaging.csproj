@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    
+    <PackageId>Mazeland.FileService.Shared.Messaging</PackageId>
+    <Version>1.0.2</Version>
+    <Description>RabbitMq Messaging</Description>
+    <Authors>maze37</Authors>
+    <RepositoryUrl>https://github.com/maze37/FileService</RepositoryUrl>
+    <PackageTags>Messaging</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>IntegrationEvents</RootNamespace>
+  </PropertyGroup>
+
+</Project>

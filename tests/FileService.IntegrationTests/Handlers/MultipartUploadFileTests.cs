@@ -25,12 +25,13 @@ public class MultipartUploadFileTests : FileServiceBaseTests
     public async Task  MultipartUpload_FullCycle_PersistsMediaFile()
     {
         // Arrange
+        var entityId = Guid.NewGuid();
         var cancellationToken = new CancellationTokenSource().Token;
 
         FileInfo fileInfo = new(Path.Combine(AppContext.BaseDirectory, "Resources", "video.mp4"));
         
         // Act
-        StartMultipartUploadResponse startMultipartResponse = await StartMultipartUpload(fileInfo, cancellationToken);
+        StartMultipartUploadResponse startMultipartResponse = await StartMultipartUpload(fileInfo, entityId, cancellationToken);
 
         IReadOnlyList<PartETagDto> partETags = await UploadChunks(fileInfo, startMultipartResponse, cancellationToken);
 
@@ -38,6 +39,8 @@ public class MultipartUploadFileTests : FileServiceBaseTests
         
         // Assert
         Assert.True(result.IsSuccess);
+        var message = await _factory.Broker.WaitForAsync("asset.ready.user", startMultipartResponse.MediaAssetId);
+        Assert.Equal(entityId, message.GetProperty("entityId").GetGuid());
         
         await ExecuteInDb(async db =>
         {
@@ -59,7 +62,8 @@ public class MultipartUploadFileTests : FileServiceBaseTests
     }
 
     private async Task<StartMultipartUploadResponse> StartMultipartUpload(
-        FileInfo fileInfo, 
+        FileInfo fileInfo,
+        Guid entityId,
         CancellationToken cancellationToken)
     {
         var request = new StartMultipartUploadRequest(
@@ -68,7 +72,7 @@ public class MultipartUploadFileTests : FileServiceBaseTests
             "video/mp4",
             fileInfo.Length,
             "user",
-            Guid.Parse("9c1c4802-da4b-4959-8563-175102a3217b"));
+            entityId);
 
         HttpResponseMessage startMultipartResponse = await AppHttpClient
             .PostAsJsonAsync("api/files/multipart/start", request, cancellationToken);

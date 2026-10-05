@@ -15,6 +15,28 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql
 
+  rabbitmq:
+    container_name: rabbitmq-fs
+    image: rabbitmq:4-management-alpine
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      shared-network:
+        aliases:
+          - platform-rabbitmq
+
   seq:
     container_name: seq-fs
     image: datalust/seq:latest
@@ -23,12 +45,12 @@ services:
       ACCEPT_EULA: "Y"
       SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
     ports:
-      - "5341:5341"
+      - "5342:5341"
       - "8082:80"
 
   minio:
-    image: minio/minio:latest
     container_name: file-service-minio
+    image: minio/minio:latest
     restart: always
     ports:
       - "9000:9000"
@@ -46,6 +68,13 @@ services:
       retries: 5
       start_period: 10s
 
+  redis:
+    container_name: redis-fs
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6381:6379"
+
   file-service:
     build:
       context: .
@@ -58,33 +87,36 @@ services:
       - "8003:8003"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8003
-      ConnectionStrings__FileServiceDb: "Host=postgres;Port=5432;Database=file_service_db;Username=postgres;Password=1234"
+      ASPNETCORE_URLS: "http://+:8003"
+      ConnectionStrings__Database: "Host=postgres;Port=5432;Database=file_service_db;Username=postgres;Password=1234"
+      ConnectionStrings__RabbitMq: "amqp://guest:guest@platform-rabbitmq:5672"
+      ConnectionStrings__Redis: "redis:6379"
       Serilog__WriteTo__1__Args__serverUrl: "http://seq:5341"
-      S3Options__Endpoint: "http://minio:9000"
-      S3Options__PublicEndpoint: "http://localhost:9000"
-      S3Options__AccessKey: "minioadmin"
-      S3Options__SecretKey: "minioadmin"
+      FileStorageOptions__Endpoint: "http://minio:9000"
+      FileStorageOptions__ExternalEndpoint: "http://localhost:9000"
+      FileStorageOptions__AccessKey: "minioadmin"
+      FileStorageOptions__SecretKey: "minioadmin"
     depends_on:
-      - postgres
-      - seq
-      - minio
+      postgres:
+        condition: service_started
+      seq:
+        condition: service_started
+      minio:
+        condition: service_started
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - default
       - shared-network
-    
-  redis:
-    container_name: redis-fs
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    restart: always
 
 volumes:
   postgres-data:
     name: fileservice-postgres-data
   minio-data:
-    
+  rabbitmq_data:
+
 networks:
   shared-network:
     external: true

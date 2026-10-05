@@ -1,3 +1,4 @@
+using FileService.Core.Messaging;
 using FileService.Web.Configuration;
 using Serilog;
 
@@ -14,6 +15,8 @@ try
         .Enrich.WithProperty("ServiceName", "FileService"));
 
     builder.Services.ConfigureApp(builder.Configuration);
+
+    builder.AddWolverine();
 
     var app = builder.Build();
 

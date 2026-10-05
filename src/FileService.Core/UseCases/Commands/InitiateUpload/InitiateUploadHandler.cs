@@ -1,7 +1,5 @@
 using Core.Abstractions;
-using Core.Database;
 using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain;
@@ -90,20 +88,14 @@ public class InitiateUploadHandler : ICommandHandler<InitiateUploadCommand, Init
         if (uploadUrlResult.IsFailure)
             return uploadUrlResult.Error;
         
-        var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
-        if (transactionResult.IsFailure)
-            return transactionResult.Error;
-
-        using var transactionScope = transactionResult.Value;
+        var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+        if (transaction.IsFailure)
+            return transaction.Error;
 
         _mediaAssetRepository.Add(mediaAssetResult.Value);
         mediaAssetResult.Value.BeginUpload();
 
-        var saveResult = await _transactionManager.SaveChangesAsync(cancellationToken);
-        if (saveResult.IsFailure)
-            return saveResult.Error;
-
-        var commitResult = transactionScope.Commit();
+        var commitResult = await _transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
             return commitResult.Error;
 

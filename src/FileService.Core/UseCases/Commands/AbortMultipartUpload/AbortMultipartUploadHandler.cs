@@ -1,7 +1,5 @@
 ﻿using Core.Abstractions;
-using Core.Database;
 using CSharpFunctionalExtensions;
-using FileService.Contracts;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
@@ -54,19 +52,13 @@ public class AbortMultipartUploadHandler : ICommandHandler<AbortMultipartUploadC
         if (abortUploadResult.IsFailure)
             return abortUploadResult.Error;
         
-        var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
-        if (transactionResult.IsFailure)
-            return transactionResult.Error;
-
-        using var transactionScope = transactionResult.Value;
+        var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+        if (transaction.IsFailure)
+            return transaction.Error;
         
         _mediaAssetRepository.Remove(mediaAsset);
         
-        var saveResult = await _transactionManager.SaveChangesAsync(cancellationToken);
-        if (saveResult.IsFailure)
-            return saveResult.Error;
-
-        var commitResult = transactionScope.Commit();
+        var commitResult = await _transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
             return commitResult.Error;
         

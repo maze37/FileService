@@ -46,10 +46,10 @@ public abstract class FileServiceBaseTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    protected async Task ExecuteInDb(Func<AppDbContext, Task> action)
+    protected async Task ExecuteInDb(Func<FileServiceDbContext, Task> action)
     {
         await using AsyncServiceScope scope = Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FileServiceDbContext>();
         await action(dbContext);
     }
 

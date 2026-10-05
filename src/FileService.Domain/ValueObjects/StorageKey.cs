@@ -3,12 +3,18 @@ using SharedKernel;
 
 namespace FileService.Domain.ValueObjects;
 
+/// <summary>
+/// Бакет и ключ объекта в S3-совместимом хранилище.
+/// </summary>
 public sealed class StorageKey : ValueObject
 {
+    /// <summary>
+    /// Предельная длина строкового значения в символах.
+    /// </summary>
     public const int MAX_LENGTH = 1024;
 
     /// <summary>
-    /// Чистый S3-Guid.NewGuid() ключ
+    /// Ключ объекта внутри бакета: префикс и имя, разделённые косой чертой.
     /// </summary>
     public string Value { get; }
     
@@ -18,7 +24,7 @@ public sealed class StorageKey : ValueObject
     public string Prefix { get; }
     
     /// <summary>
-    /// Prefix/Key.
+    /// Имя объекта без префикса и бакета.
     /// </summary>
     public string Key { get; }
     
@@ -33,8 +39,14 @@ public sealed class StorageKey : ValueObject
     public string FullPath { get; }
 
     // EF Core
+    /// <summary>
+    /// Конструктор для восстановления объекта средствами EF Core.
+    /// </summary>
     private StorageKey() { }
 
+    /// <summary>
+    /// Инициализирует объект переданными значениями без дополнительных проверок.
+    /// </summary>
     private StorageKey(string bucket, string prefix, string key)
     {
         Bucket = bucket;
@@ -44,6 +56,9 @@ public sealed class StorageKey : ValueObject
         FullPath = $"{Bucket}/{Value}";
     }
     
+    /// <summary>
+    /// Проверяет бакет и ключ, запрещает недопустимые сегменты пути и ограничивает полную длину.
+    /// </summary>
     public static Result<StorageKey, Error> Create(string bucket, string prefix, string key)
     {
         if (string.IsNullOrWhiteSpace(bucket))
@@ -72,6 +87,9 @@ public sealed class StorageKey : ValueObject
         return new StorageKey(bucket, prefix, key);
     }
     
+    /// <summary>
+    /// Создаёт ключ с новым GUID в указанном бакете и префиксе.
+    /// </summary>
     public static Result<StorageKey, Error> CreateNew(string bucket, string prefix)
     {
         string key = Guid.NewGuid().ToString("N"); 
@@ -79,6 +97,9 @@ public sealed class StorageKey : ValueObject
         return Create(bucket, prefix, key);
     }
     
+    /// <summary>
+    /// Возвращает компоненты, по которым сравниваются значения объекта.
+    /// </summary>
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return Bucket;

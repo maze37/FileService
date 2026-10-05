@@ -10,14 +10,29 @@ namespace FileService.Domain.Assets;
 /// </summary>
 public sealed class AudioAsset : MediaAsset
 {
+    /// <summary>
+    /// Имя бакета для хранения файлов этого типа.
+    /// </summary>
     public const string BUCKET = "audio";
 
+    /// <summary>
+    /// Допустимые расширения файлов без точки.
+    /// </summary>
     public static readonly string[] AllowedExtensions = ["mp3", "wav", "ogg", "m4a"];
+    /// <summary>
+    /// Максимальный размер файла в байтах.
+    /// </summary>
     public const long MAX_BYTES = 100L * 1024 * 1024;
 
     // EF Core
+    /// <summary>
+    /// Конструктор для восстановления объекта средствами EF Core.
+    /// </summary>
     private AudioAsset() { }
 
+    /// <summary>
+    /// Инициализирует объект переданными значениями без дополнительных проверок.
+    /// </summary>
     private AudioAsset(
         Guid id,
         MediaData mediaData,
@@ -26,6 +41,9 @@ public sealed class AudioAsset : MediaAsset
         MediaStatus status)
         : base(id, mediaData, owner, storageKey, status, AssetType.AUDIO) { }
 
+    /// <summary>
+    /// Проверяет метаданные и создаёт новый ассет в состоянии PENDING.
+    /// </summary>
     public static Result<AudioAsset, Error> Create(MediaData mediaData, MediaOwner owner, StorageKey storageKey)
     {
         var validationResult = Validate(mediaData);
@@ -35,6 +53,9 @@ public sealed class AudioAsset : MediaAsset
         return new AudioAsset(Guid.CreateVersion7(), mediaData, owner, storageKey, MediaStatus.PENDING);
     }
 
+    /// <summary>
+    /// Проверяет расширение, категорию содержимого и допустимый размер файла.
+    /// </summary>
     public static UnitResult<Error> Validate(MediaData mediaData)
     {
         if (!AllowedExtensions.Contains(mediaData.FileName.Extension))

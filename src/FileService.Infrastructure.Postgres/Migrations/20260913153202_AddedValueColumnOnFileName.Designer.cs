@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace FileService.Infrastructure.Postgres.Migrations
 {
-    [DbContext(typeof(AppDbContext))]
+    [DbContext(typeof(FileServiceDbContext))]
     [Migration("20260913153202_AddedValueColumnOnFileName")]
     partial class AddedValueColumnOnFileName
     {

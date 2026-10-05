@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,8 @@ namespace FileService.IntegrationTests.Infrastructure;
 
 public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    public RabbitMqTestBroker Broker { get; } = new();
+
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder("postgres:18-alpine")
         .WithDatabase("file_service_db")
         .WithUsername("postgres")
@@ -38,11 +41,14 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
     
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("ConnectionStrings:Database", _dbContainer.GetConnectionString());
+        builder.UseSetting("ConnectionStrings:RabbitMq", Broker.ConnectionString);
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:FileServiceDb"] = _dbContainer.GetConnectionString(),
+                ["ConnectionStrings:Database"] = _dbContainer.GetConnectionString(),
+                ["ConnectionStrings:RabbitMq"] = Broker.ConnectionString,
                 ["FileStorageOptions:AccessKey"] = "minioadmin",
                 ["FileStorageOptions:SecretKey"] = "minioadmin"
             });
@@ -50,10 +56,14 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
 
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<AppDbContext>();
-            services.RemoveAll<DbContextOptions>();
+            services.RemoveAll<IDistributedCache>();
+            services.AddDistributedMemoryCache();
 
-            services.AddDbContext<AppDbContext>((sp, options) =>
+            services.RemoveAll<FileServiceDbContext>();
+            services.RemoveAll<DbContextOptions>();
+            services.RemoveAll<DbContextOptions<FileServiceDbContext>>();
+
+            services.AddDbContext<FileServiceDbContext>((sp, options) =>
             {
                 options.UseNpgsql(_dbContainer.GetConnectionString());
             });
@@ -100,9 +110,10 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
     {
         await _dbContainer.StartAsync();
         await _minioContainer.StartAsync();
+        await Broker.StartAsync();
 
         await using var scope = Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FileServiceDbContext>();
 
         await dbContext.Database.MigrateAsync();
         
@@ -112,16 +123,17 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
         await InitializeRespawner();
     }
 
-    public async Task DisposeAsync()
+    public new async Task DisposeAsync()
     {
+        await base.DisposeAsync();
+        await Broker.DisposeAsync();
+        if (_dbConnection is not null)
+            await _dbConnection.DisposeAsync();
         await _dbContainer.StopAsync();
         await _dbContainer.DisposeAsync();
         
         await _minioContainer.StopAsync();
         await _minioContainer.DisposeAsync();
-        
-        await _dbConnection.CloseAsync();
-        await _dbConnection.DisposeAsync();
     }
     
     private async Task InitializeRespawner()
@@ -131,19 +143,53 @@ public class IntegrationTestsWebFactory : WebApplicationFactory<Program>, IAsync
             new RespawnerOptions
             { 
                 DbAdapter = DbAdapter.Postgres, 
-                SchemasToInclude = ["files"]
+                SchemasToInclude = ["files"],
+                TablesToInclude = [new Respawn.Graph.Table("files", "media_assets")]
             });
     }
     
     /// <summary>
-    /// Полный сброс состояния между тестами: БД и содержимое бакетов.
+    /// Дожидается доставки outbox, затем очищает очередь, бизнес-данные и бакеты.
     /// </summary>
     public async Task ResetAsync()
     {
+        await WaitForOutboxDeliveryAsync();
+        await Broker.PurgeAsync();
         await ResetDatabaseAsync();
         await ResetStorageAsync();
     }
  
+    private async Task WaitForOutboxDeliveryAsync()
+    {
+        // Таблицами Wolverine управляет сам Wolverine: не удаляем ожидающие отправки сообщения.
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FileServiceDbContext>();
+        int pending = -1;
+
+        try
+        {
+            do
+            {
+                pending = await db.Database.SqlQuery<int>($"""
+                    SELECT count(*)::int AS "Value"
+                    FROM files.wolverine_outgoing_envelopes
+                    """).SingleAsync(timeout.Token);
+
+                if (pending == 0)
+                    return;
+
+                await Task.Delay(100, timeout.Token);
+            } while (true);
+        }
+        catch (OperationCanceledException ex) when (timeout.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Outbox delivery did not complete within 30 seconds. Last pending count: {pending}. " +
+                "Test state was not reset; check RabbitMQ and Wolverine logs.", ex);
+        }
+    }
+
     public async Task ResetDatabaseAsync()
     {
         await _respawner.ResetAsync(_dbConnection!);

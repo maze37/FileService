@@ -1,4 +1,4 @@
-﻿namespace FileService.Infrastructure.S3;
+﻿namespace FileService.Core.Abstractions;
 
 public record FileStorageOptions
 {

@@ -1,9 +1,9 @@
 ﻿using Core.Abstractions;
-using Core.Database;
 using CSharpFunctionalExtensions;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
+using IntegrationEvents.Files.Events;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using SharedKernel;
@@ -17,19 +17,22 @@ public class DeleteFileHandler : ICommandHandler<DeleteFileCommand, DeleteFileRe
     private readonly IS3Provider _s3Provider;
     private readonly ILogger<DeleteFileHandler> _logger;
     private readonly HybridCache _cache;
+    private readonly IOutboxService _outbox;
 
     public DeleteFileHandler(
         ITransactionManager transactionManager,
         IMediaAssetRepository mediaAssetRepository,
         IS3Provider s3Provider,
         ILogger<DeleteFileHandler> logger,
-        HybridCache cache)
+        HybridCache cache,
+        IOutboxService outbox)
     {
         _transactionManager = transactionManager;
         _mediaAssetRepository = mediaAssetRepository;
         _s3Provider = s3Provider;
         _logger = logger;
         _cache = cache;
+        _outbox = outbox;
     }
 
     public async Task<Result<DeleteFileResponse, Error>> HandleAsync(
@@ -46,23 +49,23 @@ public class DeleteFileHandler : ICommandHandler<DeleteFileCommand, DeleteFileRe
             return Error.Conflict(
                 "media.asset.cannot.delete",
                 $"Нельзя удалить файл: текущий статус {asset.Status}");
-
-        // Открываем транзакцию
-        var transactionResult = await _transactionManager.BeginTransactionAsync(cancellationToken);
-        if (transactionResult.IsFailure)
-            return transactionResult.Error;
-
-        using var transactionScope = transactionResult.Value;
+        
+        var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+        if (transaction.IsFailure)
+            return transaction.Error;
         
         var markResult = asset.MarkAsDeleted();
         if (markResult.IsFailure)
             return markResult.Error;
         
-        var saveResult = await _transactionManager.SaveChangesAsync(cancellationToken);
-        if (saveResult.IsFailure)
-            return saveResult.Error;
-
-        var commitResult = transactionScope.Commit();
+        await _outbox.PublishAsync(new AssetDeleted(
+            AssetId: asset.Id,
+            EntityId: asset.MediaOwner.EntityId,
+            EntityType: asset.MediaOwner.Context,
+            AssetType: asset.AssetType.ToString(),
+            OccurredAt: DateTimeOffset.UtcNow));
+        
+        var commitResult = await _transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
             return commitResult.Error;
         

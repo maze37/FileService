@@ -3,7 +3,6 @@ using CSharpFunctionalExtensions;
 using FileService.Contracts.Dtos;
 using FileService.Core.Abstractions;
 using FileService.Domain.Enums;
-using FileService.Infrastructure.S3;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

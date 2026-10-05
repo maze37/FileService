@@ -1,7 +1,4 @@
-using Core.Abstractions;
-using Core.Database;
-using FileService.Core.Abstractions;
-using FileService.Infrastructure.Postgres.Database;
+﻿using FileService.Core.Abstractions;
 using FileService.Infrastructure.Postgres.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -17,9 +14,9 @@ public static class Inject
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<AppDbContext>((sp, options) =>
+        services.AddDbContext<FileServiceDbContext>((sp, options) =>
         {
-            var connectionString = configuration.GetConnectionString("FileServiceDb");
+            var connectionString = configuration.GetConnectionString("Database");
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
             options.UseNpgsql(connectionString);
@@ -27,11 +24,13 @@ public static class Inject
             options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
         
-        services.AddScoped<IReadDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        services.AddScoped<IReadDbContext>(sp => sp.GetRequiredService<FileServiceDbContext>());
         
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
+
+        services.AddScoped<IOutboxService, OutboxService>();
         
         return services;
     }

@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace FileService.Infrastructure.Postgres.Migrations
 {
-    [DbContext(typeof(AppDbContext))]
+    [DbContext(typeof(FileServiceDbContext))]
     [Migration("20260911145925_StorageMetadataAdded")]
     partial class StorageMetadataAdded
     {
