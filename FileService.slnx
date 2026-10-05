@@ -7,6 +7,7 @@
     <File Path="Directory.Packages.props" />
     <File Path="docker-compose.yml" />
     <File Path="nuget.config" />
+    <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/FileService.Contracts/FileService.Contracts.csproj" />

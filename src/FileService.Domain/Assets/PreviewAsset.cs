@@ -10,14 +10,29 @@ namespace FileService.Domain.Assets;
 /// </summary>
 public sealed class PreviewAsset : MediaAsset
 {
+    /// <summary>
+    /// Имя бакета для хранения файлов этого типа.
+    /// </summary>
     public const string BUCKET = "previews";
 
+    /// <summary>
+    /// Допустимые расширения файлов без точки.
+    /// </summary>
     public static readonly string[] AllowedExtensions = ["jpg", "jpeg", "png", "webp"];
+    /// <summary>
+    /// Максимальный размер файла в байтах.
+    /// </summary>
     public const long MAX_BYTES = 50L * 1024 * 1024;
 
     // EF Core
+    /// <summary>
+    /// Конструктор для восстановления объекта средствами EF Core.
+    /// </summary>
     private PreviewAsset() { }
 
+    /// <summary>
+    /// Инициализирует объект переданными значениями без дополнительных проверок.
+    /// </summary>
     private PreviewAsset(
         Guid id, 
         MediaData mediaData, 
@@ -27,6 +42,9 @@ public sealed class PreviewAsset : MediaAsset
         AssetType assetType)
         : base(id, mediaData, owner, storageKey, status, assetType) { }
     
+    /// <summary>
+    /// Проверяет назначение изображения и метаданные, затем создаёт ассет в состоянии PENDING.
+    /// </summary>
     public static Result<PreviewAsset, Error> Create(
         MediaData mediaData,
         MediaOwner owner,
@@ -43,6 +61,9 @@ public sealed class PreviewAsset : MediaAsset
         return new PreviewAsset(Guid.CreateVersion7(), mediaData, owner, storageKey, MediaStatus.PENDING, assetType);
     }
 
+    /// <summary>
+    /// Проверяет расширение, категорию содержимого и допустимый размер файла.
+    /// </summary>
     public static UnitResult<Error> Validate(MediaData mediaData)
     {
         if (!AllowedExtensions.Contains(mediaData.FileName.Extension))

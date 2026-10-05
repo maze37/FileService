@@ -5,10 +5,19 @@ using SharedKernel;
 
 namespace FileService.Domain.Assets;
 
+/// <summary>
+/// Медиаассет с владельцем, расположением в хранилище и правилами изменения состояния.
+/// </summary>
 public abstract class MediaAsset
 {
+    /// <summary>
+    /// Общая константа предельной длины строковых данных ассета.
+    /// </summary>
     public const int MAX_LENGTH = 1024;
     
+    /// <summary>
+    /// Идентификатор сущности.
+    /// </summary>
     public Guid Id { get; protected set; }
 
     /// <summary>
@@ -27,7 +36,7 @@ public abstract class MediaAsset
     public StorageKey StorageKey { get; protected set; } = null!;
 
     /// <summary>
-    /// Информация о весе и
+    /// Фактический размер, тип содержимого и ETag объекта в хранилище.
     /// </summary>
     public StorageMetadata StorageMetadata { get; private set; } = null!;
     
@@ -62,8 +71,14 @@ public abstract class MediaAsset
     public DateTimeOffset? UpdatedWhen { get; protected set; }
     
     // EF Core
+    /// <summary>
+    /// Конструктор для восстановления объекта средствами EF Core.
+    /// </summary>
     protected MediaAsset() { }
 
+    /// <summary>
+    /// Инициализирует объект переданными значениями без дополнительных проверок.
+    /// </summary>
     protected MediaAsset(
         Guid id,
         MediaData mediaData,
@@ -82,6 +97,9 @@ public abstract class MediaAsset
         CreatedWhen = DateTimeOffset.UtcNow;
     }
     
+    /// <summary>
+    /// Создаёт подходящий подтип ассета и проверяет метаданные для выбранного назначения.
+    /// </summary>
     public static Result<MediaAsset, Error> CreateForUpload(
         AssetType assetType,
         MediaData mediaData,
@@ -110,6 +128,9 @@ public abstract class MediaAsset
         };
     }
     
+    /// <summary>
+    /// Привязывает идентификатор multipart-сессии только к загружаемому ассету.
+    /// </summary>
     public UnitResult<Error> AttachUploadId(string uploadId)
     {
         if (Status is not MediaStatus.UPLOADING)
@@ -119,6 +140,9 @@ public abstract class MediaAsset
         return UnitResult.Success<Error>();
     }
 
+    /// <summary>
+    /// Переводит ожидающий ассет из PENDING в UPLOADING и обновляет время изменения.
+    /// </summary>
     public UnitResult<Error> BeginUpload()
     {
         if (Status != MediaStatus.PENDING)
@@ -129,6 +153,9 @@ public abstract class MediaAsset
         return UnitResult.Success<Error>();
     }
 
+    /// <summary>
+    /// Переводит UPLOADING в UPLOADED без проверки метаданных хранилища.
+    /// </summary>
     public UnitResult<Error> MarkUploaded()
     {
         if (Status != MediaStatus.UPLOADING)
@@ -139,6 +166,9 @@ public abstract class MediaAsset
         return UnitResult.Success<Error>();
     }
 
+    /// <summary>
+    /// Помечает ассет удалённым; отклоняет повторное удаление и состояние PENDING.
+    /// </summary>
     public UnitResult<Error> MarkAsDeleted()
     {
         if (Status == MediaStatus.DELETED)
@@ -152,6 +182,9 @@ public abstract class MediaAsset
         return UnitResult.Success<Error>();
     }
     
+    /// <summary>
+    /// Помечает ассет отменённым; отклоняет повторную отмену и состояние PENDING.
+    /// </summary>
     public UnitResult<Error> MarkAsCancelled()
     {
         if (Status == MediaStatus.CANCELLED)
@@ -165,6 +198,9 @@ public abstract class MediaAsset
         return UnitResult.Success<Error>();
     }
     
+    /// <summary>
+    /// Проверяет размер и тип содержимого по данным хранилища, сохраняет метаданные и завершает загрузку.
+    /// </summary>
     public UnitResult<Error> CompleteUpload(StorageMetadata metadata)
     {
         if (Status != MediaStatus.UPLOADING)

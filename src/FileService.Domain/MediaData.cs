@@ -15,7 +15,7 @@ public class MediaData
     public FileName FileName { get; }
     
     /// <summary>
-    /// Тип ресурса (изображение, документ, видео, превью и т.д.)
+    /// Тип содержимого файла и его категория.
     /// </summary>
     public ContentType ContentType { get; }
     
@@ -30,8 +30,14 @@ public class MediaData
     public long ExpectedChunksCount { get; }
     
     // EF Core
+    /// <summary>
+    /// Конструктор для восстановления объекта средствами EF Core.
+    /// </summary>
     private MediaData() { }
 
+    /// <summary>
+    /// Инициализирует объект переданными значениями без дополнительных проверок.
+    /// </summary>
     private MediaData(
         FileName fileName,
         ContentType contentType,
@@ -44,6 +50,9 @@ public class MediaData
         ExpectedChunksCount = expectedChunksCount;
     }
 
+    /// <summary>
+    /// Создаёт метаданные файла с положительным ожидаемым количеством частей.
+    /// </summary>
     public static Result<MediaData, Error> Create(
         FileName fileName,
         ContentType contentType,

@@ -3,12 +3,27 @@ using SharedKernel;
 
 namespace FileService.Domain.ValueObjects;
 
+/// <summary>
+/// Фактические метаданные объекта, полученные из файлового хранилища.
+/// </summary>
 public sealed class StorageMetadata : ValueObject
 {
+    /// <summary>
+    /// Фактический размер объекта в байтах.
+    /// </summary>
     public long SizeBytes { get; }
+    /// <summary>
+    /// Тип содержимого, возвращённый хранилищем.
+    /// </summary>
     public string ContentType { get; }
+    /// <summary>
+    /// Идентификатор версии содержимого, возвращённый хранилищем.
+    /// </summary>
     public string ETag { get; }
 
+    /// <summary>
+    /// Инициализирует объект переданными значениями без дополнительных проверок.
+    /// </summary>
     private StorageMetadata(long sizeBytes, string contentType, string eTag)
     {
         SizeBytes = sizeBytes;
@@ -16,6 +31,9 @@ public sealed class StorageMetadata : ValueObject
         ETag = eTag;
     }
 
+    /// <summary>
+    /// Проверяет положительный размер и непустой тип содержимого, сохраняя переданный ETag.
+    /// </summary>
     public static Result<StorageMetadata, Error> Create(long sizeBytes, string contentType, string eTag)
     {
         if (sizeBytes <= 0)
@@ -27,6 +45,9 @@ public sealed class StorageMetadata : ValueObject
         return new StorageMetadata(sizeBytes, contentType, eTag);
     }
 
+    /// <summary>
+    /// Возвращает компоненты, по которым сравниваются значения объекта.
+    /// </summary>
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return SizeBytes;

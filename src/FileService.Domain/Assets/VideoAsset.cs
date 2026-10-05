@@ -10,15 +10,33 @@ namespace FileService.Domain.Assets;
 /// </summary>
 public class VideoAsset : MediaAsset
 {
+    /// <summary>
+    /// Имя бакета для хранения файлов этого типа.
+    /// </summary>
     public const string BUCKET = "videos";
+    /// <summary>
+    /// Префикс для исходных видеофайлов.
+    /// </summary>
     public const string RAW_PREFIX = "raw";
+    /// <summary>
+    /// Название допустимой категории содержимого видео.
+    /// </summary>
     public const string ALLOWED_CONTENT_TYPE = "video";
 
+    /// <summary>
+    /// Допустимые расширения файлов без точки.
+    /// </summary>
     public static readonly string[] AllowedExtensions = ["mp4", "mkv", "avi", "mov"];
 
     // EF Core
+    /// <summary>
+    /// Конструктор для восстановления объекта средствами EF Core.
+    /// </summary>
     private VideoAsset() { }
 
+    /// <summary>
+    /// Инициализирует объект переданными значениями без дополнительных проверок.
+    /// </summary>
     private VideoAsset(
         Guid id,
         MediaData mediaData,
@@ -27,6 +45,9 @@ public class VideoAsset : MediaAsset
         MediaStatus status)
         : base(id, mediaData, owner, storageKey, status, AssetType.VIDEO) { }
 
+    /// <summary>
+    /// Проверяет метаданные и создаёт новый ассет в состоянии PENDING.
+    /// </summary>
     public static Result<VideoAsset, Error> Create(MediaData mediaData, MediaOwner owner, StorageKey storageKey)
     {
         var validationResult = Validate(mediaData);
@@ -41,6 +62,9 @@ public class VideoAsset : MediaAsset
             MediaStatus.PENDING);
     }
 
+    /// <summary>
+    /// Проверяет расширение, категорию содержимого и допустимый размер файла.
+    /// </summary>
     public static UnitResult<Error> Validate(MediaData mediaData)
     {
         if (!AllowedExtensions.Contains(mediaData.FileName.Extension))
